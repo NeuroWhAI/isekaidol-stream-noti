@@ -86,7 +86,16 @@
 			}
 		}
 
-		return set(ref(database, 'users/' + token), subscribedMembers.join(','));
+		// DB Key로 사용 불가능한 문자가 올 경우를 대비해서 자체 규칙으로 인코딩.
+		let escapedToken = token
+			.replace(/\//g, "!!!1!!!")
+			.replace(/\./g, "!!!2!!!")
+			.replace(/\#/g, "!!!3!!!")
+			.replace(/\$/g, "!!!4!!!")
+			.replace(/\[/g, "!!!5!!!")
+			.replace(/\]/g, "!!!6!!!");
+
+		return set(ref(database, 'users/' + escapedToken), subscribedMembers.join(','));
 	}
 
 	let notiConfigs = {};
