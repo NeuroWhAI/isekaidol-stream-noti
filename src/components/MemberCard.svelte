@@ -1,10 +1,13 @@
 <script lang="ts">
+    import { createEventDispatcher } from 'svelte';
     import { Card, Switch, Badge } from 'attractions';
 
     export let id: string;
     export let title: string = "제목 없음";
     export let category: string = "";
     export let online: boolean = false;
+    export let subscribed: boolean = false;
+    export let configAvailable: boolean;
 
     class MemberData {
         constructor(public name: string, public twitchId: string, public color: string) {}
@@ -19,6 +22,15 @@
         'ine': new MemberData('아이네', 'vo_ine', '#8a2be2'),
     };
     const data = members[id];
+
+    const dispatch = createEventDispatcher();
+
+    function setNoti(event: CustomEvent) {
+        dispatch('config', {
+            id: id,
+            subscribed: event.detail.value,
+        });
+    }
 </script>
 
 <Card tight style="margin: 0 0 10px 0">
@@ -34,7 +46,7 @@
             </a>
             <span class="content-text category">{category}</span>
         </div>
-        <Switch />
+        <Switch bind:value={subscribed} on:change={setNoti} disabled={!configAvailable} />
     </div>
 </Card>
 

@@ -15,6 +15,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 const messaging = getMessaging(app);
-const db = getDatabase(app, "https://isekaidol-stream-noti-default-rtdb.asia-southeast1.firebasedatabase.app/");
+const database = getDatabase(app, "https://isekaidol-stream-noti-default-rtdb.asia-southeast1.firebasedatabase.app/");
 
-export { messaging, db };
+export { messaging, database };
