@@ -30,7 +30,7 @@
         </a>
         <div class="info-box">
             <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
-                <span class="content-text" title="{title}">{title}</span>
+                <span class="content-text" {title}>{title === '' ? "제목 없음" : title}</span>
             </a>
             <span class="content-text category">{category}</span>
         </div>
