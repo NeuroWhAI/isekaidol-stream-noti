@@ -58,6 +58,18 @@
         align-items: center;
         margin: 20px 24px;
     }
+    @media (max-width: 600px) {
+        .box {
+            margin: 16px 20px;
+            font-size: 0.9em;
+        }
+    }
+    @media (max-width: 520px) {
+        .box {
+            margin: 10px 14px;
+            font-size: 0.8em;
+        }
+    }
     
     .info-box {
         flex: 1;
@@ -66,12 +78,31 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+    @media (max-width: 600px) {
+        .info-box {
+            margin: 0 16px 0 16px;
+        }
+    }
+    @media (max-width: 520px) {
+        .info-box {
+            margin: 0 12px 0 12px;
+        }
+    }
 
     img.profile {
         height: 80px;
-        width: 80px;
         border: 2px solid black;
         border-radius: 50%;
+    }
+    @media (max-width: 600px) {
+        img.profile {
+            height: 64px;
+        }
+    }
+    @media (max-width: 520px) {
+        img.profile {
+            height: 52px;
+        }
     }
 
     .content-text {

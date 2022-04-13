@@ -120,7 +120,7 @@
 <main>
 	<div class="header">
 		<Headline>이세계 아이돌 방송 알림</Headline>
-		<Subhead>트위치 뱅온 및 방제, 카테고리 변경을 알려드려요.</Subhead>
+		<Subhead>뱅온 및 방제, 카테고리 변경을 알려드려요.</Subhead>
 	</div>
 	{#each members as id}
 		<MemberCard
@@ -148,6 +148,16 @@
 		max-width: 600px;
 		margin: 0 auto;
 	}
+    @media (max-width: 600px) {
+        main {
+			padding: 0.7em;
+        }
+    }
+    @media (max-width: 520px) {
+		main {
+            padding: 0.35em;
+        }
+    }
 
 	hr {
 		display: block;
@@ -160,7 +170,7 @@
 
 	footer {
 		text-align: center;
-		font-size: 0.8em;
+		font-size: 0.6em;
 		color: gray;
 		padding-bottom: 8px;
 	}
