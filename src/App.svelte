@@ -3,7 +3,7 @@
 	import MemberCard from './components/MemberCard.svelte';
 
 	import { ref, onValue, set } from "firebase/database";
-	import { getToken, onMessage } from "firebase/messaging";
+	import { getToken, onMessage, isSupported as isMsgSupported } from "firebase/messaging";
 
 	import { database, messaging } from './server';
 
@@ -34,33 +34,37 @@
 
 	let msgToken = '';
 
-	getToken(messaging, { vapidKey: 'BET0ZjPDIvaVd0PN76845lHEujw5_18DgtyNMyKiw3TkSWtMtSqR4ohORWsrlX-DrmWCRy3rAloywV_i_RZJtzs' }).then((currentToken) => {
-		if (currentToken) {
-			// 토큰 발급됨.
-			if (window.localStorage) {
-				let prevToken = localStorage.getItem(local_db_keys.prevToken);
+	if (isMsgSupported()) {
+		getToken(messaging, { vapidKey: 'BET0ZjPDIvaVd0PN76845lHEujw5_18DgtyNMyKiw3TkSWtMtSqR4ohORWsrlX-DrmWCRy3rAloywV_i_RZJtzs' }).then((currentToken) => {
+			if (currentToken) {
+				// 토큰 발급됨.
+				if (window.localStorage) {
+					let prevToken = localStorage.getItem(local_db_keys.prevToken);
 
-				msgToken = currentToken;
-				localStorage.setItem(local_db_keys.prevToken, currentToken);
+					msgToken = currentToken;
+					localStorage.setItem(local_db_keys.prevToken, currentToken);
 
-				// 이전 토큰이 있고 비교해서 다르면 로컬 구독 정보를 다시 전송.
-				if (prevToken !== null && prevToken !== currentToken) {
-					console.log("Update registration token.")
-					sendSubscription(currentToken)
-						.catch(() => alert("구독 갱신에 실패하였습니다."));
+					// 이전 토큰이 있고 비교해서 다르면 로컬 구독 정보를 다시 전송.
+					if (prevToken !== null && prevToken !== currentToken) {
+						console.log("Update registration token.")
+						sendSubscription(currentToken)
+							.catch(() => alert("구독 갱신에 실패하였습니다."));
+					}
 				}
+				console.log(currentToken);
+			} else {
+				console.log('No registration token available. Request permission to generate one.');
 			}
-			console.log(currentToken);
-		} else {
-			console.log('No registration token available. Request permission to generate one.');
-		}
-	}).catch((err) => {
-		console.log('An error occurred while retrieving token. ', err);
-	});
+		}).catch((err) => {
+			console.log('An error occurred while retrieving token. ', err);
+		});
 
-	onMessage(messaging, (payload) => {
-		console.log('Message received: ', payload);
-	});
+		onMessage(messaging, (payload) => {
+			console.log('Message received: ', payload);
+		});
+	} else {
+		alert("브라우저가 알림 기능을 지원하지 않습니다.");
+	}
 
 	function handleConfig(event: CustomEvent) {
 		const memberId = event.detail.id;
