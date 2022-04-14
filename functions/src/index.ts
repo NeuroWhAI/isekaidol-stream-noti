@@ -86,7 +86,7 @@ exports.updateSub = functions.database.ref('/users/{user}').onWrite(async (snaps
         .replace(/!!!4!!!/g, '$')
         .replace(/!!!5!!!/g, '[')
         .replace(/!!!6!!!/g, ']');
-    let subs = snapshot.after.val();
+    let subs = snapshot.after.val() ?? '';
 
     functions.logger.info("Update subs.", subs, user);
 
