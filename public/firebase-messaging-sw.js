@@ -18,11 +18,41 @@ const messaging = firebase.messaging(app);
 messaging.onBackgroundMessage((payload) => {
     console.log('[firebase-messaging-sw.js] Received background message ', payload);
 
-    const notificationTitle = 'Background Message Title';
-    const notificationOptions = {
-        body: 'Background Message body.',
-        icon: '/favicon.png'
+    const members = {
+        'jururu': '주르르',
+        'jingburger': '징버거',
+        'viichan': '비챤',
+        'gosegu': '고세구',
+        'lilpa': '릴파',
+        'ine': '아이네',
     };
 
-    self.registration.showNotification(notificationTitle, notificationOptions);
+    let data = payload.data;
+    if (!('id' in data)) {
+        return;
+    }
+    data.online = JSON.parse(data.online);
+    data.onlineChanged = JSON.parse(data.onlineChanged);
+    data.titleChanged = JSON.parse(data.titleChanged);
+    data.categoryChanged = JSON.parse(data.categoryChanged);
+
+    let notiTitle = members[data.id];
+    let titleInfo = [];
+    if (data.onlineChanged) {
+        titleInfo.push(data.online ? "뱅온" : "뱅종");
+    }
+    if (data.titleChanged) {
+        titleInfo.push("방제");
+    }
+    if (data.categoryChanged) {
+        titleInfo.push("카테고리");
+    }
+    notiTitle += " " + titleInfo.join(", ") + " 알림";
+
+    const notiOptions = {
+        body: data.title + "\n" + data.category,
+        icon: '/image/' + data.id + '.png',
+    };
+
+    self.registration.showNotification(notiTitle, notiOptions);
 });
