@@ -1,6 +1,31 @@
 importScripts('https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.6.10/firebase-messaging-compat.js');
 
+self.addEventListener('notificationclick', function(e) {
+    const members = {
+        'jururu': 'cotton__123',
+        'jingburger': 'jingburger',
+        'viichan': 'viichan6',
+        'gosegu': 'gosegugosegu',
+        'lilpa': 'lilpaaaaaa',
+        'ine': 'vo_ine',
+    };
+    const url = "https://www.twitch.tv/" + members[e.notification.tag];
+
+    e.notification.close();
+    e.waitUntil(clients.matchAll({type: 'window'}).then((windowClients) => {
+        for (var i = 0; i < windowClients.length; i++) {
+            var client = windowClients[i];
+            if (client.url === url && 'focus' in client) {
+                return client.focus();
+            }
+        }
+        if (clients.openWindow) {
+            return clients.openWindow(url);
+        }
+    }));
+});
+
 const firebaseConfig = {
     apiKey: "AIzaSyDbKOeYwK8qAynN6oJxPinJP5_-z3Nqkp0",
     authDomain: "isekaidol-stream-noti.firebaseapp.com",
@@ -52,6 +77,7 @@ messaging.onBackgroundMessage((payload) => {
     const notiOptions = {
         body: data.title + "\n" + data.category,
         icon: '/image/' + data.id + '.png',
+        tag: data.id,
     };
 
     self.registration.showNotification(notiTitle, notiOptions);

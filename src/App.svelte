@@ -98,7 +98,15 @@
         console.log(notiTitle);
         console.log(notiOptions);
 
-        new Notification(notiTitle, notiOptions);
+        const url = "https://www.twitch.tv/" + members[data.id].twitchId;
+
+        let noti = new Notification(notiTitle, notiOptions);
+        noti.onclick = function(e) {
+            e.preventDefault();
+            noti.close();
+            noti = null;
+            window.open(url, '_blank');
+        };
     }
 
     let notiConfigsBackup = null;
