@@ -53,16 +53,16 @@
                     }
                 }
                 console.log(currentToken);
+
+                onMessage(messaging, (payload) => {
+                    console.log('Message received: ', payload);
+                    notifyMessage(payload.data);
+                });
             } else {
                 console.log('No registration token available. Request permission to generate one.');
             }
         }).catch((err) => {
             console.log('An error occurred while retrieving token. ', err);
-        });
-
-        onMessage(messaging, (payload) => {
-            console.log('Message received: ', payload);
-            notifyMessage(payload.data);
         });
     } else {
         alert("브라우저가 알림 기능을 지원하지 않습니다.");
@@ -95,7 +95,10 @@
             icon: '/image/' + data.id + '.png',
         };
 
-        new Notification(notiTitle, notiOptions)
+        console.log(notiTitle);
+        console.log(notiOptions);
+
+        new Notification(notiTitle, notiOptions);
     }
 
     function handleConfig(event: CustomEvent) {
