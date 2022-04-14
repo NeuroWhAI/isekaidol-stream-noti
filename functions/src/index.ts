@@ -59,9 +59,13 @@ exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async 
 
             let message = {
                 data: {
-                    online: newData.online ? 'true' : 'false',
+                    id: member.id,
+                    online: String(newData.online),
                     title: newData.title,
                     category: newData.category,
+                    onlineChanged: String(dbData.online !== newData.online),
+                    titleChanged: String(dbData.title !== newData.title),
+                    categoryChanged: String(dbData.category !== newData.category),
                 },
                 topic: member.id,
             };
