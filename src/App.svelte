@@ -101,20 +101,41 @@
         new Notification(notiTitle, notiOptions);
     }
 
+    let notiConfigsBackup = null;
+    let delayedSendingSubs = null;
+
     function handleConfig(event: CustomEvent) {
         const memberId = event.detail.id;
         const subscribed = event.detail.subscribed;
 
-        sendSubscription(msgToken)
-            .then(() => {
-                if (window.localStorage) {
-                    localStorage.setItem(local_db_keys[memberId], subscribed);
-                }
-            })
-            .catch(() => {
-                alert("구독 설정 변경에 실패하였습니다.");
-                notiConfigs[memberId] = !subscribed;
-            });
+        if (notiConfigsBackup === null) {
+            notiConfigsBackup = Object.assign({}, notiConfigs);
+            notiConfigsBackup[memberId] = !subscribed;
+        }
+
+        if (delayedSendingSubs !== null) {
+            clearTimeout(delayedSendingSubs);
+            console.log("Sending subscription is canceled and reserved again.");
+        }
+        delayedSendingSubs = setTimeout(() => {
+            sendSubscription(msgToken)
+                .then(() => {
+                    if (window.localStorage) {
+                        for (let id in members) {
+                            localStorage.setItem(local_db_keys[id], notiConfigs[id]);
+                        }
+                    }
+                    console.log("Sending subscription is completed.");
+                })
+                .catch(() => {
+                    alert("구독 설정 변경에 실패하였습니다.");
+                    notiConfigs = Object.assign({}, notiConfigsBackup);
+                })
+                .finally(() => {
+                    notiConfigsBackup = null;
+                    delayedSendingSubs = null;
+                });
+        }, 2000);
     }
 
     function sendSubscription(token: string): Promise<void> {
@@ -150,6 +171,20 @@
             notiConfigs[id] = false;
         }
         alert("로컬 저장소를 지원하지 않아 동작이 제한됩니다.");
+    }
+
+    // 구독 정보가 아직 전송 대기중이면 좀 봐달라고 함.
+    // 아래 메시지는 모던 브라우저에서 실제로 표시되진 않음.
+    window.onbeforeunload = function(e: BeforeUnloadEvent) {
+        e = e || window.event;
+
+        if (delayedSendingSubs !== null) {
+            const msg = "아직 구독 정보가 서버로 전송되지 않았습니다.\n잠시 후 종료해주세요.";
+            if (e) {
+                e.returnValue = msg;
+            }
+            return msg;
+        }
     }
 </script>
 
