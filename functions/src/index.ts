@@ -97,12 +97,16 @@ exports.updateSub = functions.database.ref('/users/{user}').onWrite(async (snaps
         .replace(/!!!5!!!/g, '[')
         .replace(/!!!6!!!/g, ']');
     let subs = snapshot.after.val() ?? '';
+    if (subs === '') {
+        subs = [];
+    } else {
+        subs = subs.split(',');
+    }
 
     functions.logger.info("Update subs.", subs, user);
 
     let jobs = [];
 
-    subs = subs.split(',');
     for (let id of subs) {
         let job = admin.messaging().subscribeToTopic(user, id)
             .then((res) => functions.logger.info("Subscribe success.", id, res))
