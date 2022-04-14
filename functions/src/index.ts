@@ -5,6 +5,15 @@ import { ApiClient } from '@twurple/api';
 
 admin.initializeApp();
 
+const members = [
+    { id: 'jururu', name: 'cotton__123' },
+    { id: 'jingburger', name: 'jingburger' },
+    { id: 'viichan', name: 'viichan6' },
+    { id: 'gosegu', name: 'gosegugosegu' },
+    { id: 'lilpa', name: 'lilpaaaaaa' },
+    { id: 'ine', name: 'vo_ine' },
+];
+
 //export const watchStreams = functions.https.onRequest(async (request, response) => {
 exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async (context) => {
     const clientId = process.env.TWITCH_ID;
@@ -16,15 +25,6 @@ exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async 
 
     const authProvider = new ClientCredentialsAuthProvider(clientId, clientSecret);
     const apiClient = new ApiClient({ authProvider });
-
-    const members = [
-        { id: 'jururu', name: 'cotton__123' },
-        { id: 'jingburger', name: 'jingburger' },
-        { id: 'viichan', name: 'viichan6' },
-        { id: 'gosegu', name: 'gosegugosegu' },
-        { id: 'lilpa', name: 'lilpaaaaaa' },
-        { id: 'ine', name: 'vo_ine' },
-    ];
 
     for (let member of members) {
         let user = await apiClient.users.getUserByName(member.name);
@@ -52,10 +52,51 @@ exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async 
         ) {
             refStream.set(newData)
                 .then(() => functions.logger.info("Stream data updated."))
-                .catch((err) => functions.logger.error("Fail to update the stream data. " + err));
+                .catch((err) => functions.logger.error("Fail to update the stream data.", err));
+
+            let message = {
+                data: {
+                    online: newData.online ? 'true' : 'false',
+                    title: newData.title,
+                    category: newData.category,
+                },
+                topic: member.id,
+            };
+            admin.messaging().send(message)
+                .then((res) => functions.logger.info("Messaging success.", message, res))
+                .catch((err) => functions.logger.error("Messaging fail.", message, err));
         }
     }
 
     //response.send("Hello from Firebase!");
+    return null;
+});
+
+exports.updateSub = functions.database.ref('/users/{user}').onWrite((snapshot, context) => {
+    let user = context.params.user
+        .replace(/!!!1!!!/g, '/')
+        .replace(/!!!2!!!/g, '.')
+        .replace(/!!!3!!!/g, '#')
+        .replace(/!!!4!!!/g, '$')
+        .replace(/!!!5!!!/g, '[')
+        .replace(/!!!6!!!/g, ']');
+    let subs = snapshot.after.val();
+
+    functions.logger.info("Update subs.", subs, user);
+
+    subs = subs.split(',');
+    for (let id of subs) {
+        admin.messaging().subscribeToTopic(user, id)
+            .then((res) => functions.logger.info("Subscribe success.", id, res))
+            .catch((err) => functions.logger.error("Subscribe fail.", id, err));
+    }
+    for (let member of members) {
+        if (subs.indexOf(member.id) < 0) {
+            admin.messaging().unsubscribeFromTopic(user, member.id)
+                .then((res) => functions.logger.info("Unsubscribe success.", member.id, res))
+                .catch((err) => functions.logger.error("Unsubscribe fail.", member.id, err));
+        }
+    }
+
     return null;
 });

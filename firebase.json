@@ -10,6 +10,18 @@
   "functions": {
     "predeploy": [
       "yarn --cwd \"$RESOURCE_DIR\" run build"
-    ]
+    ],
+    "source": "functions"
+  },
+  "emulators": {
+    "database": {
+      "port": 5002
+    },
+    "functions": {
+      "port": 5001
+    },
+    "ui": {
+      "enabled": true
+    }
   }
 }
