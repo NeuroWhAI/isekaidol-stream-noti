@@ -57,22 +57,28 @@ exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async 
                 .catch((err) => functions.logger.error("Fail to update the stream data.", err));
             jobs.push(dbJob);
 
-            let message = {
-                data: {
-                    id: member.id,
-                    online: String(newData.online),
-                    title: newData.title,
-                    category: newData.category,
-                    onlineChanged: String(dbData.online !== newData.online),
-                    titleChanged: String(dbData.title !== newData.title),
-                    categoryChanged: String(dbData.category !== newData.category),
-                },
-                topic: member.id,
-            };
-            let msgJob = admin.messaging().send(message)
-                .then((res) => functions.logger.info("Messaging success.", message, res))
-                .catch((err) => functions.logger.error("Messaging fail.", message, err));
-            jobs.push(msgJob);
+            // 방종은 알리지 않음.
+            if (newData.online
+                || dbData.title !== newData.title
+                || dbData.category !== newData.category
+            ) {
+                let message = {
+                    data: {
+                        id: member.id,
+                        online: String(newData.online),
+                        title: newData.title,
+                        category: newData.category,
+                        onlineChanged: String(dbData.online !== newData.online),
+                        titleChanged: String(dbData.title !== newData.title),
+                        categoryChanged: String(dbData.category !== newData.category),
+                    },
+                    topic: member.id,
+                };
+                let msgJob = admin.messaging().send(message)
+                    .then((res) => functions.logger.info("Messaging success.", message, res))
+                    .catch((err) => functions.logger.error("Messaging fail.", message, err));
+                jobs.push(msgJob);
+            }
         }
     }
 
