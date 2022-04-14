@@ -6,19 +6,20 @@
     import { getToken, onMessage, isSupported as isMsgSupported } from "firebase/messaging";
 
     import { database, messaging } from './server';
+    import members from './data/members';
 
-    const members = ['jururu', 'jingburger', 'viichan', 'gosegu', 'lilpa', 'ine'];
+    const memberIds = Object.keys(members);
 
     const local_db_key_prefix = 'isekaidol-stream-noti-neurowhai-';
     const local_db_keys = {
         prevToken: local_db_key_prefix + 'prev-token',
     };
-    for (let id of members) {
+    for (let id in members) {
         local_db_keys[id] = local_db_key_prefix + 'member-' + id;
     }
 
     let streamData = {};
-    for (let id of members) {
+    for (let id in members) {
         streamData[id] = {
             category: "",
             online: false,
@@ -61,9 +62,40 @@
 
         onMessage(messaging, (payload) => {
             console.log('Message received: ', payload);
+            notifyMessage(payload.data);
         });
     } else {
         alert("브라우저가 알림 기능을 지원하지 않습니다.");
+    }
+
+    function notifyMessage(data) {
+        if (!('id' in data) || Notification.permission !== 'granted') {
+            return;
+        }
+        data.online = JSON.parse(data.online);
+        data.onlineChanged = JSON.parse(data.onlineChanged);
+        data.titleChanged = JSON.parse(data.titleChanged);
+        data.categoryChanged = JSON.parse(data.categoryChanged);
+
+        let notiTitle = members[data.id].name;
+        let titleInfo = [];
+        if (data.onlineChanged) {
+            titleInfo.push(data.online ? "뱅온" : "뱅종");
+        }
+        if (data.titleChanged) {
+            titleInfo.push("방제");
+        }
+        if (data.categoryChanged) {
+            titleInfo.push("카테고리");
+        }
+        notiTitle += " " + titleInfo.join(", ") + " 알림";
+
+        const notiOptions = {
+            body: data.title + "\n" + data.category,
+            icon: '/image/' + data.id + '.png',
+        };
+
+        new Notification(notiTitle, notiOptions)
     }
 
     function handleConfig(event: CustomEvent) {
@@ -84,7 +116,7 @@
 
     function sendSubscription(token: string): Promise<void> {
         let subscribedMembers = [];
-        for (let id of members) {
+        for (let id in members) {
             if (notiConfigs[id]) {
                 subscribedMembers.push(id);
             }
@@ -102,15 +134,16 @@
         return set(ref(database, 'users/' + escapedToken), subscribedMembers.join(','));
     }
 
+    // 멤버별 알림 구독 여부.
     let notiConfigs = {};
     if (window.localStorage) {
         // 저장된 구독 정보 불러오기.
-        for (let id of members) {
+        for (let id in members) {
             let config = localStorage.getItem(local_db_keys[id]);
             notiConfigs[id] = config === null ? false : JSON.parse(config); // Local DB는 무조건 문자열로 저장되는 것 주의.
         }
     } else {
-        for (let id of members) {
+        for (let id in members) {
             notiConfigs[id] = false;
         }
         alert("로컬 저장소를 지원하지 않아 동작이 제한됩니다.");
@@ -122,7 +155,7 @@
         <Headline>이세계 아이돌 방송 알림</Headline>
         <Subhead>뱅온 및 방제, 카테고리 변경을 알려드려요.</Subhead>
     </div>
-    {#each members as id}
+    {#each memberIds as id}
         <MemberCard
             {id}
             on:config={handleConfig}
