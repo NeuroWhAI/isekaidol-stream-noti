@@ -81,17 +81,20 @@
 
     img.profile {
         height: 80px;
+        width: 80px;
         border: 2px solid black;
         border-radius: 50%;
     }
     @media (max-width: 600px) {
         img.profile {
             height: 64px;
+            width: 64px;
         }
     }
     @media (max-width: 520px) {
         img.profile {
             height: 52px;
+            width: 52px;
         }
     }
 
