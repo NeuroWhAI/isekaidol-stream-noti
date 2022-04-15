@@ -9,7 +9,8 @@
     "start": "sirv public --no-clear",
     "start:dev": "sirv public -s --dev",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "deploy": "yarn build && firebase deploy"
+    "deploy": "yarn build && firebase deploy",
+    "deploy:preview": "yarn build && firebase hosting:channel:deploy preview"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^17.0.0",

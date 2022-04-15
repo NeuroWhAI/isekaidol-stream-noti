@@ -12,9 +12,9 @@ const members = [
     { id: 'gosegu', name: 'gosegugosegu' },
     { id: 'lilpa', name: 'lilpaaaaaa' },
     { id: 'ine', name: 'vo_ine' },
+    //{ id: 'wak', name: 'woowakgood' },
 ];
 
-//export const watchStreams = functions.https.onRequest(async (request, response) => {
 exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async (context) => {
     const clientId = process.env.TWITCH_ID;
     const clientSecret = process.env.TWITCH_SEC;
@@ -84,7 +84,6 @@ exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async 
 
     await Promise.allSettled(jobs);
 
-    //response.send("Hello from Firebase!");
     return null;
 });
 

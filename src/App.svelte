@@ -146,13 +146,25 @@
 
         const url = "https://www.twitch.tv/" + members[data.id].twitchId;
 
-        let noti = new Notification(notiTitle, notiOptions);
-        noti.onclick = function(e) {
-            e.preventDefault();
-            noti.close();
-            noti = null;
-            window.open(url, '_blank');
-        };
+        // new Notification()은 모바일에서 동작하지 않음.
+        // crbug.com/481856
+        try {
+            let noti = new Notification(notiTitle, notiOptions);
+            noti.onclick = function(e) {
+                e.preventDefault();
+                noti.close();
+                noti = null;
+                window.open(url, '_blank');
+            };
+        } catch (e) {
+            navigator.serviceWorker.getRegistrations().then((reg) => {
+                if (reg.length > 0) {
+                    reg[0].showNotification(notiTitle, notiOptions);
+                } else {
+                    alert(notiTitle + '\n' + notiOptions.body);
+                }
+            });
+        }
     }
 
     let notiConfigsBackup = null;

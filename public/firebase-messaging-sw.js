@@ -9,6 +9,7 @@ self.addEventListener('notificationclick', function(e) {
         'gosegu': 'gosegugosegu',
         'lilpa': 'lilpaaaaaa',
         'ine': 'vo_ine',
+        //'wak': 'woowakgood',
     };
     const url = "https://www.twitch.tv/" + members[e.notification.tag];
 
@@ -50,6 +51,7 @@ messaging.onBackgroundMessage((payload) => {
         'gosegu': '고세구',
         'lilpa': '릴파',
         'ine': '아이네',
+        //'wak': '우왁굳',
     };
 
     let data = payload.data;
