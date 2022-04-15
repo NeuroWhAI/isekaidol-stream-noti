@@ -112,9 +112,16 @@
     let notiConfigsBackup = null;
     let delayedSendingSubs = null;
 
+    let configLoadings = [];
+    for (let id in members) {
+        configLoadings[id] = false;
+    }
+
     function handleConfig(event: CustomEvent) {
         const memberId = event.detail.id;
         const subscribed = event.detail.subscribed;
+
+        configLoadings[memberId] = true;
 
         if (notiConfigsBackup === null) {
             notiConfigsBackup = Object.assign({}, notiConfigs);
@@ -142,6 +149,10 @@
                 .finally(() => {
                     notiConfigsBackup = null;
                     delayedSendingSubs = null;
+
+                    for (let id in members) {
+                        configLoadings[id] = false;
+                    }
                 });
         }, 2000);
     }
@@ -210,6 +221,7 @@
             title={streamData[id].title}
             category={streamData[id].category}
             online={streamData[id].online}
+            loading={configLoadings[id]}
         />
     {/each}
 </main>

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
-    import { Card, Switch, Badge } from 'attractions';
+    import { Card, Switch, Badge, Loading } from 'attractions';
 
     import members from '../data/members';
 
@@ -10,6 +10,7 @@
     export let online: boolean = false;
     export let subscribed: boolean = false;
     export let configAvailable: boolean;
+    export let loading: boolean = false;
 
     const data = members[id];
 
@@ -36,7 +37,12 @@
             </a>
             <span class="content-text category">{category}</span>
         </div>
-        <Switch bind:value={subscribed} on:change={setNoti} disabled={!configAvailable} />
+        <div class="right-side">
+            <Switch bind:value={subscribed} on:change={setNoti} disabled={!configAvailable} />
+            <div class="loading-spinner" hidden={!loading}>
+                <Loading />
+            </div>
+        </div>
     </div>
 </Card>
 
@@ -109,6 +115,24 @@
     .category {
         font-size: 0.85em;
         color: gray;
+    }
+
+    :global(.right-side) {
+        display: grid;
+        justify-items: center;
+        align-items: center;
+    }
+    :global(.right-side > *) {
+        grid-column-start: 1;
+        grid-row-start: 1;
+    }
+
+    .loading-spinner {
+        z-index: 1;
+        pointer-events: none;
+        background-color: rgba(255, 255, 255, 50%);
+        border-radius: 6px;
+        padding: 2px 4px;
     }
 
     a.twitch-link {
