@@ -16,6 +16,27 @@
   - 채널의 카테고리(게임)가 변경됨.
 - 웹 페이지에서 채널별 알림 구독 여부 설정 및 최근 정보 확인.
 
+## 구조
+
+```mermaid
+flowchart BT
+    U(User) -- 구독 설정 --> P(Web Page)
+    P -- 방송 정보, 알림 표시 --> U
+    
+    P <-- 설정 저장/불러오기 --> S(Local Storage)
+    
+    P -- 구독 설정 전송 --> DB(Realtime Database)
+    DB -- 방송 정보 전송 --> P
+
+    DB -- 구독 변경 트리거 --> FN(Cloud Functions)
+    FN -- 방송 정보 갱신 --> DB
+
+    FN -- 구독 설정, 알림 요청 --> M(Messaging)
+    TW(Twitch) -- 방송 정보 제공 --> FN
+
+    M -- 푸시 알림 --> P
+```
+
 ## 사용한 것들
 
 - Svelte + Typescript.
