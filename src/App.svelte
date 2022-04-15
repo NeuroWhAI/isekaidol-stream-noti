@@ -3,7 +3,7 @@
     import MemberCard from './components/MemberCard.svelte';
 
     import { ref, onValue, set } from "firebase/database";
-    import { getToken, onMessage, isSupported as isMsgSupported } from "firebase/messaging";
+    import { getToken, onMessage } from "firebase/messaging";
 
     import { database, messaging } from './server';
     import members from './data/members';
@@ -27,6 +27,11 @@
         };
     }
 
+    let configLoadings = [];
+    for (let id in members) {
+        configLoadings[id] = false;
+    }
+
     // 방송 정보가 바뀌면 받아서 갱신.
     onValue(ref(database, 'stream'), (snapshot) => {
         streamData = snapshot.val();
@@ -36,10 +41,18 @@
     let configAvailable = true;
     let msgToken = '';
 
-    if (isMsgSupported()) {
-        // 이미 알림 기능이 있을 경우에만 즉시 토큰 확인.
+    if (window.Notification && Notification.permission && Notification.requestPermission) {
+        // 이미 알림 권한이 있을 경우에만 즉시 토큰 확인.
         if (Notification.permission === 'granted') {
+            for (let id in members) {
+                configLoadings[id] = true;
+            }
             checkAndRequestNotiToken()
+                .finally(() => {
+                    for (let id in members) {
+                        configLoadings[id] = false;
+                    }
+                })
         } else if (Notification.permission === 'denied') {
             configAvailable = false;
         }
@@ -49,12 +62,6 @@
     }
 
     async function checkAndRequestNotiToken(): Promise<boolean> {
-        // 메시징 기능을 지원하는지 확인.
-        if (!isMsgSupported()) {
-            alert("브라우저가 알림 기능을 지원하지 않습니다.");
-            configAvailable = false;
-            return false;
-        }
         // 유저가 권한을 아예 거부했으면 요청하지 않음.
         if (Notification.permission === 'denied') {
             configAvailable = false;
@@ -169,11 +176,6 @@
 
     let notiConfigsBackup = null;
     let delayedSendingSubs = null;
-
-    let configLoadings = [];
-    for (let id in members) {
-        configLoadings[id] = false;
-    }
 
     async function handleConfig(event: CustomEvent) {
         const memberId = event.detail.id;
