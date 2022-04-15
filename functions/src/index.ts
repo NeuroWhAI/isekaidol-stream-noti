@@ -96,14 +96,25 @@ exports.updateSub = functions.database.ref('/users/{user}').onWrite(async (snaps
         .replace(/!!!4!!!/g, '$')
         .replace(/!!!5!!!/g, '[')
         .replace(/!!!6!!!/g, ']');
-    let subs = snapshot.after.val() ?? '';
-    if (subs === '') {
-        subs = [];
+
+    let prevSubs = snapshot.before.val() ?? '';
+    if (prevSubs === '') {
+        prevSubs = [];
     } else {
-        subs = subs.split(',');
+        prevSubs = prevSubs.split(',');
     }
 
-    functions.logger.info("Update subs.", subs, user);
+    let currSubs = snapshot.after.val() ?? '';
+    if (currSubs === '') {
+        currSubs = [];
+    } else {
+        currSubs = currSubs.split(',');
+    }
+
+    let subs = currSubs.filter((x: string) => !prevSubs.includes(x));
+    let unsubs = prevSubs.filter((x: string) => !currSubs.includes(x));
+
+    functions.logger.info("Update subs.", currSubs, user);
 
     let jobs = [];
 
@@ -113,13 +124,11 @@ exports.updateSub = functions.database.ref('/users/{user}').onWrite(async (snaps
             .catch((err) => functions.logger.error("Subscribe fail.", id, err));
         jobs.push(job);
     }
-    for (let member of members) {
-        if (subs.indexOf(member.id) < 0) {
-            let job = admin.messaging().unsubscribeFromTopic(user, member.id)
-                .then((res) => functions.logger.info("Unsubscribe success.", member.id, res))
-                .catch((err) => functions.logger.error("Unsubscribe fail.", member.id, err));
-            jobs.push(job);
-        }
+    for (let id of unsubs) {
+        let job = admin.messaging().unsubscribeFromTopic(user, id)
+            .then((res) => functions.logger.info("Unsubscribe success.", id, res))
+            .catch((err) => functions.logger.error("Unsubscribe fail.", id, err));
+        jobs.push(job);
     }
 
     await Promise.allSettled(jobs);
