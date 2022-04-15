@@ -33,10 +33,55 @@
         console.log(streamData);
     });
 
+    let configAvailable = true;
     let msgToken = '';
 
     if (isMsgSupported()) {
-        getToken(messaging, { vapidKey: 'BET0ZjPDIvaVd0PN76845lHEujw5_18DgtyNMyKiw3TkSWtMtSqR4ohORWsrlX-DrmWCRy3rAloywV_i_RZJtzs' }).then((currentToken) => {
+        // 이미 알림 기능이 있을 경우에만 즉시 토큰 확인.
+        if (Notification.permission === 'granted') {
+            checkAndRequestNotiToken()
+        } else if (Notification.permission === 'denied') {
+            configAvailable = false;
+        }
+    } else {
+        configAvailable = false;
+        alert("브라우저가 알림 기능을 지원하지 않습니다.");
+    }
+
+    async function checkAndRequestNotiToken(): Promise<boolean> {
+        // 메시징 기능을 지원하는지 확인.
+        if (!isMsgSupported()) {
+            alert("브라우저가 알림 기능을 지원하지 않습니다.");
+            configAvailable = false;
+            return false;
+        }
+        // 유저가 권한을 아예 거부했으면 요청하지 않음.
+        if (Notification.permission === 'denied') {
+            configAvailable = false;
+            return false;
+        }
+        // 이미 토큰을 받았으면 요청 불필요.
+        if (msgToken !== '') {
+            configAvailable = true;
+            return true;
+        }
+
+        if (Notification.permission !== 'granted') {
+            let result = await Notification.requestPermission();
+            if (result === 'granted') {
+                return await checkAndRequestNotiToken();
+            } else {
+                configAvailable = false;
+                return false;
+            }
+        } else {
+            // 중복 요청 방지.
+            if (!configAvailable) {
+                return false;
+            }
+            configAvailable = false;
+
+            let currentToken = await getToken(messaging, { vapidKey: 'BET0ZjPDIvaVd0PN76845lHEujw5_18DgtyNMyKiw3TkSWtMtSqR4ohORWsrlX-DrmWCRy3rAloywV_i_RZJtzs' });
             if (currentToken) {
                 // 토큰 발급됨.
                 if (window.localStorage) {
@@ -58,14 +103,15 @@
                     console.log('Message received: ', payload);
                     notifyMessage(payload.data);
                 });
+
+                configAvailable = true;
+                return true;
             } else {
                 console.log('No registration token available. Request permission to generate one.');
+                configAvailable = false;
+                return false;
             }
-        }).catch((err) => {
-            console.log('An error occurred while retrieving token. ', err);
-        });
-    } else {
-        alert("브라우저가 알림 기능을 지원하지 않습니다.");
+        }
     }
 
     function notifyMessage(data) {
@@ -117,11 +163,18 @@
         configLoadings[id] = false;
     }
 
-    function handleConfig(event: CustomEvent) {
+    async function handleConfig(event: CustomEvent) {
         const memberId = event.detail.id;
         const subscribed = event.detail.subscribed;
 
         configLoadings[memberId] = true;
+
+        let tokenResult = await checkAndRequestNotiToken();
+        if (!tokenResult) {
+            configLoadings[memberId] = false;
+            notiConfigs[memberId] = !subscribed;
+            return;
+        }
 
         if (notiConfigsBackup === null) {
             notiConfigsBackup = Object.assign({}, notiConfigs);
@@ -217,7 +270,7 @@
             {id}
             on:config={handleConfig}
             bind:subscribed={notiConfigs[id]}
-            configAvailable={msgToken !== ''}
+            {configAvailable}
             title={streamData[id].title}
             category={streamData[id].category}
             online={streamData[id].online}
