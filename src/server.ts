@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getMessaging } from "firebase/messaging";
 import { getDatabase } from "firebase/database";
+import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDbKOeYwK8qAynN6oJxPinJP5_-z3Nqkp0",
@@ -16,5 +17,6 @@ const app = initializeApp(firebaseConfig);
 
 const messaging = getMessaging(app);
 const database = getDatabase(app, "https://isekaidol-stream-noti-default-rtdb.asia-southeast1.firebasedatabase.app/");
+const analytics = getAnalytics(app);
 
-export { messaging, database };
+export { messaging, database, analytics };
