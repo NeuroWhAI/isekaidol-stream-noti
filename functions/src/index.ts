@@ -73,6 +73,11 @@ exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async 
                         categoryChanged: String(dbData.category !== newData.category),
                     },
                     topic: member.id,
+                    webpush: {
+                        headers: {
+                            TTL: '1200',
+                        }
+                    }
                 };
                 let msgJob = admin.messaging().send(message)
                     .then((res) => functions.logger.info("Messaging success.", message, res))
