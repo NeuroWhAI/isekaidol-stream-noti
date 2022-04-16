@@ -2,7 +2,7 @@
     import { Headline, Subhead } from 'attractions';
     import MemberCard from './components/MemberCard.svelte';
 
-    import { ref, onValue, set } from "firebase/database";
+    import { ref, onValue, set, get } from "firebase/database";
     import { getToken, onMessage } from "firebase/messaging";
 
     import { database, messaging } from './server';
@@ -97,11 +97,27 @@
                     msgToken = currentToken;
                     localStorage.setItem(local_db_keys.prevToken, currentToken);
 
-                    // 이전 토큰이 있고 비교해서 다르면 로컬 구독 정보를 다시 전송.
                     if (prevToken !== null && prevToken !== currentToken) {
+                        // 이전 토큰이 있고 비교해서 다르면 로컬 구독 정보를 다시 전송.
                         console.log("Update registration token.")
                         sendSubscription(currentToken)
                             .catch(() => alert("구독 갱신에 실패하였습니다."));
+                    } else if (prevToken === null) {
+                        // 이전 토큰이 없다는 건 캐시가 날아갔을 가능성이 있으니 DB에서 구독 정보 찾아보기.
+                        get(ref(database, 'users/' + encodeToken(currentToken)))
+                            .then((snapshot) => {
+                                let subs = snapshot.val();
+                                if (subs !== null && subs !== '') {
+                                    console.log("Restore subs.", subs);
+                                    subs = subs.split(',');
+                                    for (let id of subs) {
+                                        notiConfigs[id] = true;
+                                        if (window.localStorage) {
+                                            localStorage.setItem(local_db_keys[id], notiConfigs[id]);
+                                        }
+                                    }
+                                }
+                            })
                     }
                 }
                 console.log(currentToken);
@@ -233,15 +249,19 @@
         }
 
         // DB Key로 사용 불가능한 문자가 올 경우를 대비해서 자체 규칙으로 인코딩.
-        let escapedToken = token
+        let escapedToken = encodeToken(token);
+
+        return set(ref(database, 'users/' + escapedToken), subscribedMembers.join(','));
+    }
+
+    function encodeToken(token) {
+        return token
             .replace(/\//g, "!!!1!!!")
             .replace(/\./g, "!!!2!!!")
             .replace(/\#/g, "!!!3!!!")
             .replace(/\$/g, "!!!4!!!")
             .replace(/\[/g, "!!!5!!!")
             .replace(/\]/g, "!!!6!!!");
-
-        return set(ref(database, 'users/' + escapedToken), subscribedMembers.join(','));
     }
 
     // 멤버별 알림 구독 여부.
