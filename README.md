@@ -21,6 +21,17 @@ PC:
 Mobile:  
 ![Mobile Noti](./res/noti2.jpg)
 
+## 텔레그램 채널
+
+웹 알림 외에도 멤버별 텔레그램 채널(대화 불가)에서도 알림.
+
+- [@jururu_stream_noti](https://t.me/jururu_stream_noti)
+- [@jingburger_stream_noti](https://t.me/jingburger_stream_noti)
+- [@viichan_stream_noti](https://t.me/viichan_stream_noti)
+- [@gosegu_stream_noti](https://t.me/gosegu_stream_noti)
+- [@lilpa_stream_noti](https://t.me/lilpa_stream_noti)
+- [@ine_stream_noti](https://t.me/ine_stream_noti)
+
 ## 구조
 
 ```mermaid
@@ -36,6 +47,7 @@ flowchart BT
     DB -- 구독 변경 트리거 --> FN(Cloud Functions)
     FN -- 방송 정보 갱신 --> DB
 
+    FN -- 알림 요청 --> TG(Telegram)
     FN -- 구독 설정, 알림 요청 --> M(Messaging)
     TW(Twitch) -- 방송 정보 제공 --> FN
 
@@ -46,4 +58,4 @@ flowchart BT
 
 - Svelte + Typescript.
 - Firebase Hosting, Realtime Database, Cloud Functions, Messaging.
-- Twitch API.
+- Twitch, Telegram API.
