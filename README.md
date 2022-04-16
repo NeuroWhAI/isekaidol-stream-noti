@@ -16,6 +16,11 @@
   - 채널의 카테고리(게임)가 변경됨.
 - 웹 페이지에서 채널별 알림 구독 여부 설정 및 최근 정보 확인.
 
+PC:  
+![PC Noti](./res/noti.png)  
+Mobile:  
+![Mobile Noti](./res/noti2.jpg)
+
 ## 구조
 
 ```mermaid
