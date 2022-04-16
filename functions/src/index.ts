@@ -1,25 +1,36 @@
+process.env.NTBA_FIX_319 = '1';
+
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { ClientCredentialsAuthProvider } from '@twurple/auth';
 import { ApiClient } from '@twurple/api';
 
+import TelegramBot = require('node-telegram-bot-api');
+
 admin.initializeApp();
 
 const members = [
-    { id: 'jururu', name: 'cotton__123' },
-    { id: 'jingburger', name: 'jingburger' },
-    { id: 'viichan', name: 'viichan6' },
-    { id: 'gosegu', name: 'gosegugosegu' },
-    { id: 'lilpa', name: 'lilpaaaaaa' },
-    { id: 'ine', name: 'vo_ine' },
-    //{ id: 'wak', name: 'woowakgood' },
+    { id: 'jururu', twitchId: 'cotton__123',  },
+    { id: 'jingburger', twitchId: 'jingburger' },
+    { id: 'viichan', twitchId: 'viichan6' },
+    { id: 'gosegu', twitchId: 'gosegugosegu' },
+    { id: 'lilpa', twitchId: 'lilpaaaaaa' },
+    { id: 'ine', twitchId: 'vo_ine' },
+    //{ id: 'wak', twitchId: 'woowakgood' },
 ];
+
+async function sendTelegram(bot: TelegramBot, id: string, msg: string): Promise<void> {
+    await bot.sendMessage('@' + id + '_stream_noti', msg, {
+        disable_web_page_preview: true,
+    });
+}
 
 exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async (context) => {
     const clientId = process.env.TWITCH_ID;
     const clientSecret = process.env.TWITCH_SEC;
-    if (clientId === undefined || clientSecret === undefined) {
-        functions.logger.error("Can't find twitch app token.");
+    const botToken = process.env.BOT_TOKEN;
+    if (clientId === undefined || clientSecret === undefined || botToken === undefined) {
+        functions.logger.error("Can't find required envs.");
         return null;
     }
 
@@ -28,8 +39,10 @@ exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async 
     const authProvider = new ClientCredentialsAuthProvider(clientId, clientSecret);
     const apiClient = new ApiClient({ authProvider });
 
+    const bot = new TelegramBot(botToken);
+
     for (let member of members) {
-        let user = await apiClient.users.getUserByName(member.name);
+        let user = await apiClient.users.getUserByName(member.twitchId);
         if (user === null) continue;
         functions.logger.info("User : " + user.id);
 
@@ -82,6 +95,26 @@ exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async 
                 let msgJob = admin.messaging().send(message)
                     .then((res) => functions.logger.info("Messaging success.", message, res))
                     .catch((err) => functions.logger.error("Messaging fail.", message, err));
+                jobs.push(msgJob);
+
+                let titleInfo = [];
+                if (dbData.online !== newData.online) {
+                    titleInfo.push(newData.online ? "뱅온" : "뱅종");
+                }
+                if (dbData.title !== newData.title) {
+                    titleInfo.push("방제");
+                }
+                if (dbData.category !== newData.category) {
+                    titleInfo.push("카테고리");
+                }
+                let msg = titleInfo.join(", ") + " 알림";
+                if (dbData.title !== newData.title) {
+                    msg += '\n' + newData.title;
+                }
+                if (dbData.category !== newData.category) {
+                    msg += '\n' + newData.category;
+                }
+                msgJob = sendTelegram(bot, member.id, msg);
                 jobs.push(msgJob);
             }
         }
