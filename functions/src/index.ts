@@ -9,6 +9,23 @@ import TelegramBot = require('node-telegram-bot-api');
 
 admin.initializeApp();
 
+const clientId = process.env.TWITCH_ID;
+const clientSecret = process.env.TWITCH_SEC;
+const botToken = process.env.BOT_TOKEN;
+const httpKey = process.env.HTTP_JOB_KEY;
+
+let authProvider: ClientCredentialsAuthProvider | null = null;
+let apiClient: ApiClient | null = null;
+if (clientId && clientSecret) {
+    authProvider = new ClientCredentialsAuthProvider(clientId, clientSecret);
+    apiClient = new ApiClient({ authProvider });
+}
+
+let bot: TelegramBot | null = null;
+if (botToken) {
+    bot = new TelegramBot(botToken);
+}
+
 const members = [
     { id: 'jururu', twitchId: 'cotton__123',  },
     { id: 'jingburger', twitchId: 'jingburger' },
@@ -25,21 +42,13 @@ async function sendTelegram(bot: TelegramBot, id: string, msg: string): Promise<
     });
 }
 
-exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async (context) => {
-    const clientId = process.env.TWITCH_ID;
-    const clientSecret = process.env.TWITCH_SEC;
-    const botToken = process.env.BOT_TOKEN;
-    if (clientId === undefined || clientSecret === undefined || botToken === undefined) {
-        functions.logger.error("Can't find required envs.");
-        return null;
+async function streamJob() {
+    if (apiClient === null || bot === null) {
+        functions.logger.warn("Twitch or Telegram are not prepared!");
+        return;
     }
 
     let jobs = [];
-
-    const authProvider = new ClientCredentialsAuthProvider(clientId, clientSecret);
-    const apiClient = new ApiClient({ authProvider });
-
-    const bot = new TelegramBot(botToken);
 
     for (let member of members) {
         let user = await apiClient.users.getUserByName(member.twitchId);
@@ -121,8 +130,41 @@ exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async 
     }
 
     await Promise.allSettled(jobs);
+}
+
+exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async (context) => {
+    let refTime = admin.database().ref('lasttime');
+    let time = (await refTime.get()).val();
+    let now = Date.now();
+
+    // HTTP 함수인 updateStreams이 잘 해주고 있었을 경우엔 갱신 작업을 수행하지 않음.
+    if (now - time < 30000) {
+        return null;
+    }
+
+    await streamJob();
+
+    await refTime.set(Date.now());
 
     return null;
+});
+
+exports.updateStreams = functions.https.onRequest(async (req, res) => {
+    functions.logger.info("Query.", req.query);
+
+    // 뜻하지 않은 곳에서 요청이 올 경우 작업 방지.
+    if (req.query.key !== httpKey) {
+        res.status(403).end();
+        return;
+    }
+
+    await streamJob();
+
+    let now = Date.now();
+    let refTime = admin.database().ref('lasttime');
+    await refTime.set(now);
+
+    res.status(200).send('time:' + now);
 });
 
 exports.updateSub = functions.database.ref('/users/{user}').onWrite(async (snapshot, context) => {
