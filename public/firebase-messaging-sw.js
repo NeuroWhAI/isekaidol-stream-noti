@@ -11,7 +11,12 @@ self.addEventListener('notificationclick', function(e) {
         'ine': 'vo_ine',
         //'wak': 'woowakgood',
     };
-    const url = "https://www.twitch.tv/" + members[e.notification.tag];
+    const id = e.notification.tag;
+    if (!(id in members)) {
+        e.notification.close();
+        return;
+    }
+    const url = "https://www.twitch.tv/" + members[id];
 
     e.notification.close();
     e.waitUntil(clients.matchAll({type: 'window'}).then((windowClients) => {
@@ -82,5 +87,5 @@ messaging.onBackgroundMessage((payload) => {
         tag: data.id,
     };
 
-    self.registration.showNotification(notiTitle, notiOptions);
+    return self.registration.showNotification(notiTitle, notiOptions);
 });
