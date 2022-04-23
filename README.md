@@ -1,7 +1,5 @@
 # Isekaidol Stream Noti
 
-🚧 공사중(될지 안될지 몰?루) 🚧
-
 [이세계 아이돌(이세돌)](https://namu.wiki/w/%EC%9D%B4%EC%84%B8%EA%B3%84%20%EC%95%84%EC%9D%B4%EB%8F%8C) 트위치 뱅온 및 방제, 카테고리 변경 알림 서비스.  
 [https://isekaidol-stream-noti.web.app/](https://isekaidol-stream-noti.web.app/)
 
