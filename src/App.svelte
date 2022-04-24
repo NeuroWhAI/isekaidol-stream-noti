@@ -60,7 +60,6 @@
         }
     } else {
         configAvailable = false;
-        alert("브라우저가 알림 기능을 지원하지 않습니다.");
     }
 
     async function checkAndRequestNotiToken(): Promise<boolean> {
@@ -278,7 +277,6 @@
         for (let id in members) {
             notiConfigs[id] = false;
         }
-        alert("로컬 저장소를 지원하지 않아 동작이 제한됩니다.");
     }
 
     // 구독 정보가 아직 전송 대기중이면 좀 봐달라고 함.
