@@ -346,7 +346,7 @@
 <hr />
 <footer>
     <p>NeuroWhAI</p>
-    <address>tlsehdgus321@naver.com</address>
+    <a href="https://github.com/NeuroWhAI/isekaidol-stream-noti" target="_blank">GitHub Repo</a>
 </footer>
 
 <style>
