@@ -1,6 +1,8 @@
 <script lang="ts">
-    import { Headline, Subhead, Button } from 'attractions';
+    import { Headline, Subhead, Button, Modal, Dialog } from 'attractions';
+    import { HelpCircleIcon } from 'svelte-feather-icons';
     import MemberCard from './components/MemberCard.svelte';
+    import HelpContent from './components/HelpContent.svelte';
 
     import { ref, onValue, set, get } from "firebase/database";
     import { getToken, onMessage } from "firebase/messaging";
@@ -292,12 +294,19 @@
             return msg;
         }
     }
+
+    let helpDlgOpen = false;
 </script>
 
 <main>
     <div class="header">
         <Headline>이세계 아이돌 방송 알림</Headline>
-        <Subhead>뱅온 및 방제, 카테고리 변경을 알려드려요.</Subhead>
+        <div class="subheader">
+            <Button round small class="help-btn" style="visibility: hidden;"><HelpCircleIcon size="20" /></Button>
+            <Subhead class="big-scr">뱅온 및 방제, 카테고리 변경을 알려드려요.</Subhead>
+            <Subhead class="small-scr">뱅온 및 방제, 카테고리 변경 알림.</Subhead>
+            <Button round small class="help-btn" on:click={() => helpDlgOpen = true}><HelpCircleIcon size="20" /></Button>
+        </div>
     </div>
     {#each memberIds as id}
         <MemberCard
@@ -325,6 +334,14 @@
         {/each}
     </div>
 </main>
+
+<div class="modal-box">
+    <Modal bind:open={helpDlgOpen} let:closeCallback>
+        <Dialog title="도움말" {closeCallback}>
+            <HelpContent />
+        </Dialog>
+    </Modal>
+</div>
 
 <hr />
 <footer>
@@ -362,6 +379,51 @@
     .header {
         margin-bottom: 20px;
     }
+    
+    .subheader {
+        position: relative;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .subheader > :global(.small-scr) {
+        display: none;
+    }
+    @media (max-width: 410px) {
+        .subheader > :global(.small-scr) {
+            display: block;
+        }
+        .subheader > :global(.big-scr) {
+            display: none;
+        }
+    }
+
+    :global(.help-btn) {
+        margin: 0;
+        transform: scale(1.2);
+    }
+    @media (max-width: 1024px) {
+        :global(.help-btn) {
+            transform: scale(1.1);
+        }
+    }
+    @media (max-width: 840px) {
+        :global(.help-btn) {
+            transform: scale(1.0);
+        }
+    }
+    @media (max-width: 640px) {
+        :global(.help-btn) {
+            transform: scale(0.95);
+        }
+    }
+    @media (max-width: 440px) {
+        :global(.help-btn) {
+            transform: scale(0.85);
+        }
+    }
 
     .channel-title {
         display: flex;
@@ -392,6 +454,17 @@
         height: 24px;
         border-radius: 50%;
         box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
+    }
+
+    @media (max-width: 600px) {
+        .modal-box {
+            font-size: 0.9em;
+        }
+    }
+    @media (max-width: 520px) {
+        .modal-box {
+            font-size: 0.8em;
+        }
     }
 
     footer {

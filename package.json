@@ -28,6 +28,7 @@
     "sass": "^1.50.0",
     "svelte": "^3.0.0",
     "svelte-check": "^2.0.0",
+    "svelte-feather-icons": "^4.0.0",
     "svelte-preprocess": "^4.10.5",
     "tslib": "^2.0.0",
     "typescript": "^4.0.0"
