@@ -4,8 +4,8 @@
     import MemberCard from './components/MemberCard.svelte';
     import HelpContent from './components/HelpContent.svelte';
 
-    import { ref, onValue, set, get } from "firebase/database";
-    import { getToken, onMessage } from "firebase/messaging";
+    import * as FireDb from "firebase/database";
+    import * as FireMsg from "firebase/messaging";
 
     import { database, messaging } from './server';
     import members from './data/members';
@@ -35,7 +35,7 @@
     }
 
     // 방송 정보가 바뀌면 받아서 갱신.
-    onValue(ref(database, 'stream'), (snapshot) => {
+    FireDb.onValue(FireDb.ref(database, 'stream'), (snapshot) => {
         streamData = snapshot.val();
         console.log(streamData);
     });
@@ -89,7 +89,7 @@
             }
             configAvailable = false;
 
-            let currentToken = await getToken(messaging, { vapidKey: 'BET0ZjPDIvaVd0PN76845lHEujw5_18DgtyNMyKiw3TkSWtMtSqR4ohORWsrlX-DrmWCRy3rAloywV_i_RZJtzs' });
+            let currentToken = await FireMsg.getToken(messaging, { vapidKey: 'BET0ZjPDIvaVd0PN76845lHEujw5_18DgtyNMyKiw3TkSWtMtSqR4ohORWsrlX-DrmWCRy3rAloywV_i_RZJtzs' });
             if (currentToken) {
                 // 토큰 발급됨.
                 if (window.localStorage) {
@@ -105,7 +105,7 @@
                             .catch(() => alert("구독 갱신에 실패하였습니다."));
                     } else if (prevToken === null) {
                         // 이전 토큰이 없다는 건 캐시가 날아갔을 가능성이 있으니 DB에서 구독 정보 찾아보기.
-                        get(ref(database, 'users/' + encodeToken(currentToken)))
+                        FireDb.get(FireDb.ref(database, 'users/' + encodeToken(currentToken)))
                             .then((snapshot) => {
                                 let subs = snapshot.val();
                                 if (subs !== null && subs !== '') {
@@ -123,7 +123,7 @@
                 }
                 console.log(currentToken);
 
-                onMessage(messaging, (payload) => {
+                FireMsg.onMessage(messaging, (payload) => {
                     console.log('Message received: ', payload);
                     notifyMessage(payload.data);
                 });
@@ -252,7 +252,7 @@
         // DB Key로 사용 불가능한 문자가 올 경우를 대비해서 자체 규칙으로 인코딩.
         let escapedToken = encodeToken(token);
 
-        return set(ref(database, 'users/' + escapedToken), subscribedMembers.join(','));
+        return FireDb.set(FireDb.ref(database, 'users/' + escapedToken), subscribedMembers.join(','));
     }
 
     function encodeToken(token) {
