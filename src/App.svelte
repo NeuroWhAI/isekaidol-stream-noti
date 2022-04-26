@@ -98,7 +98,15 @@
             }
             configAvailable = false;
 
-            let currentToken = await FireMsg.getToken(messaging, { vapidKey: 'BET0ZjPDIvaVd0PN76845lHEujw5_18DgtyNMyKiw3TkSWtMtSqR4ohORWsrlX-DrmWCRy3rAloywV_i_RZJtzs' });
+            let currentToken = null;
+            const vapidKey = 'BET0ZjPDIvaVd0PN76845lHEujw5_18DgtyNMyKiw3TkSWtMtSqR4ohORWsrlX-DrmWCRy3rAloywV_i_RZJtzs';
+            try {
+                currentToken = await FireMsg.getToken(messaging, { vapidKey: vapidKey });
+            } catch (e) {
+                console.log("Fail to get the FCM token and will retry.");
+                Sentry.captureException(e);
+                currentToken = await FireMsg.getToken(messaging, { vapidKey: vapidKey });
+            }
             if (currentToken) {
                 // 토큰 발급됨.
                 if (window.localStorage) {
