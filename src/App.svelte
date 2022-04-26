@@ -1,11 +1,13 @@
 <script lang="ts">
+    import * as Sentry from '@sentry/browser';
     import { Headline, Subhead, Button, Modal, Dialog } from 'attractions';
     import { HelpCircleIcon } from 'svelte-feather-icons';
-    import MemberCard from './components/MemberCard.svelte';
-    import HelpContent from './components/HelpContent.svelte';
 
     import * as FireDb from "firebase/database";
     import * as FireMsg from "firebase/messaging";
+
+    import MemberCard from './components/MemberCard.svelte';
+    import HelpContent from './components/HelpContent.svelte';
 
     import { database, messaging } from './server';
     import members from './data/members';
@@ -42,6 +44,13 @@
 
     let configAvailable = true;
     let msgToken = '';
+
+    if (window.localStorage) {
+        let prevToken = localStorage.getItem(local_db_keys.prevToken);
+        if (prevToken) {
+            Sentry.setUser({ id: prevToken });
+        }
+    }
 
     if (window.Notification && Notification.permission && Notification.requestPermission) {
         // 이미 알림 권한이 있을 경우에만 즉시 토큰 확인.
@@ -102,7 +111,10 @@
                         // 이전 토큰이 있고 비교해서 다르면 로컬 구독 정보를 다시 전송.
                         console.log("Update registration token.")
                         sendSubscription(currentToken)
-                            .catch(() => alert("구독 갱신에 실패하였습니다."));
+                            .catch(() => {
+                                Sentry.captureMessage("Fail to update registration token");
+                                alert("구독 갱신에 실패하였습니다.");
+                            });
                     } else if (prevToken === null) {
                         // 이전 토큰이 없다는 건 캐시가 날아갔을 가능성이 있으니 DB에서 구독 정보 찾아보기.
                         FireDb.get(FireDb.ref(database, 'users/' + encodeToken(currentToken)))
@@ -128,10 +140,13 @@
                     notifyMessage(payload.data);
                 });
 
+                Sentry.setUser({ id: currentToken });
+
                 configAvailable = true;
                 return true;
             } else {
                 console.log('No registration token available. Request permission to generate one.');
+                Sentry.setUser(null);
                 configAvailable = false;
                 return false;
             }
@@ -185,6 +200,7 @@
                 if (reg.length > 0) {
                     reg[0].showNotification(notiTitle, notiOptions);
                 } else {
+                    Sentry.captureMessage("Fail to get a service worker's registration");
                     alert(notiTitle + '\n' + notiOptions.body);
                 }
             });
@@ -227,6 +243,7 @@
                     console.log("Sending subscription is completed.");
                 })
                 .catch(() => {
+                    Sentry.captureMessage("Fail to send subscription data");
                     alert("구독 설정 변경에 실패하였습니다.");
                     notiConfigs = Object.assign({}, notiConfigsBackup);
                 })
