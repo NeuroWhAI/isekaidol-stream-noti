@@ -109,8 +109,11 @@
                 currentToken = await FireMsg.getToken(messaging, { vapidKey: vapidKey });
             } catch (e) {
                 console.log("Fail to get the FCM token and will retry.");
-                Sentry.captureException(e);
-                currentToken = await FireMsg.getToken(messaging, { vapidKey: vapidKey });
+                try {
+                    currentToken = await FireMsg.getToken(messaging, { vapidKey: vapidKey });
+                } catch (e) {
+                    Sentry.captureException(e);
+                }
             }
             if (currentToken) {
                 // 토큰 발급됨.
@@ -158,7 +161,7 @@
                 configAvailable = true;
                 return true;
             } else {
-                console.log('No registration token available. Request permission to generate one.');
+                console.log('No registration token available.');
                 Sentry.setUser(null);
                 configAvailable = false;
                 return false;
