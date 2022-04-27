@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/browser';
 import { initializeApp } from "firebase/app";
 import { getMessaging } from "firebase/messaging";
 import { getDatabase } from "firebase/database";
@@ -13,10 +14,19 @@ const firebaseConfig = {
     measurementId: "G-X5K1S90S8G"
 };
 
+function tryOrNull<T>(job: () => T): T | null {
+    try {
+        return job();
+    } catch (e) {
+        Sentry.captureException(e);
+        return null;
+    }
+}
+
 const app = initializeApp(firebaseConfig);
 
-const messaging = getMessaging(app);
-const database = getDatabase(app, "https://isekaidol-stream-noti-default-rtdb.asia-southeast1.firebasedatabase.app/");
-const analytics = getAnalytics(app);
+const messaging = tryOrNull(() => getMessaging(app));
+const database = tryOrNull(() => getDatabase(app, "https://isekaidol-stream-noti-default-rtdb.asia-southeast1.firebasedatabase.app/"));
+const analytics = tryOrNull(() => getAnalytics(app));
 
 export { messaging, database, analytics };

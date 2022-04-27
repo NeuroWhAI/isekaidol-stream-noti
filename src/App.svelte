@@ -9,7 +9,7 @@
     import MemberCard from './components/MemberCard.svelte';
     import HelpContent from './components/HelpContent.svelte';
 
-    import { database, messaging } from './server';
+    import { messaging, database } from './server';
     import members from './data/members';
 
     const memberIds = Object.keys(members);
@@ -52,7 +52,7 @@
         }
     }
 
-    if (window.Notification && Notification.permission && Notification.requestPermission) {
+    if (messaging !== null) {
         // 이미 알림 권한이 있을 경우에만 즉시 토큰 확인.
         if (Notification.permission === 'granted') {
             for (let id in members) {
@@ -72,6 +72,11 @@
     }
 
     async function checkAndRequestNotiToken(): Promise<boolean> {
+        // 메시징 지원 여부 확인.
+        if (messaging === null) {
+            configAvailable = false;
+            return false;
+        }
         // 유저가 권한을 아예 거부했으면 요청하지 않음.
         if (Notification.permission === 'denied') {
             configAvailable = false;
