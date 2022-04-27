@@ -28,7 +28,7 @@
     <div class="box">
         <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
             <Badge hidden={!online}>
-                <img src="image/{id}.png" alt="{data.name}" class="profile" style="outline: 4px solid {online ? data.color : 'gray'};" />
+                <img src="image/{id}.png" alt="{data.name}" class="profile" style="box-shadow: 0 0 0 4px {online ? data.color : 'gray'};" />
             </Badge>
         </a>
         <div class="info-box">
