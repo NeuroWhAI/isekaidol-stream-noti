@@ -52,7 +52,7 @@
         }
     }
 
-    if (messaging !== null) {
+    if ('Notification' in window && messaging !== null) {
         // 이미 알림 권한이 있을 경우에만 즉시 토큰 확인.
         if (Notification.permission === 'granted') {
             for (let id in members) {

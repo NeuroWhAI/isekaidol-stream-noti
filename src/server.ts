@@ -18,7 +18,7 @@ function tryOrNull<T>(job: () => T): T | null {
     try {
         return job();
     } catch (e) {
-        Sentry.captureException(e);
+        console.log(e);
         return null;
     }
 }
