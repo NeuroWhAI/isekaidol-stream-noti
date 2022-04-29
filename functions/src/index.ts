@@ -106,13 +106,21 @@ async function streamJob() {
                 let msgJob = admin.messaging().send(message)
                     .then((res) => functions.logger.info("Messaging success.", message, res))
                     .catch(async (err) => {
-                        functions.logger.error("Messaging fail and will retry.", message, err);
-                        try {
-                            await new Promise((resolve) => setTimeout(resolve, 2000));
-                            const res = await admin.messaging().send(message);
-                            functions.logger.info("Messaging success.", message, res);
-                        } catch (err) {
-                            functions.logger.error("Messaging fail.", message, err);
+                        functions.logger.info("Messaging fail and will retry.", message, err);
+                        const maxRetry = 3;
+                        for (let retry = 1; retry <= maxRetry; retry++) {
+                            try {
+                                await new Promise((resolve) => setTimeout(resolve, 2000 * retry));
+                                const res = await admin.messaging().send(message);
+                                functions.logger.info("Messaging success.", message, res);
+                                break;
+                            } catch (err) {
+                                if (retry >= maxRetry) {
+                                    functions.logger.error("Messaging fail.", message, err);
+                                } else {
+                                    functions.logger.info("Messaging fail again and will retry.", message, err);
+                                }
+                            }
                         }
                     });
                 jobs.push(msgJob);
