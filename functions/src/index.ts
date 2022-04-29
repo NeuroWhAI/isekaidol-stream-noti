@@ -97,7 +97,8 @@ async function streamJob() {
                     topic: member.id,
                     webpush: {
                         headers: {
-                            TTL: '1200',
+                            "TTL": "1200",
+                            "Urgency": "high",
                         }
                     }
                 };
