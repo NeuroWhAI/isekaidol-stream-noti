@@ -110,7 +110,7 @@ async function streamJob() {
                         const maxRetry = 3;
                         for (let retry = 1; retry <= maxRetry; retry++) {
                             try {
-                                await new Promise((resolve) => setTimeout(resolve, 2000 * retry));
+                                await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retry)));
                                 const res = await admin.messaging().send(message);
                                 functions.logger.info("Messaging success.", message, res);
                                 break;
