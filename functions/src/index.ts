@@ -70,6 +70,34 @@ async function streamJob() {
         let refStream = admin.database().ref('stream/' + member.id);
         let dbData = (await refStream.get()).val();
 
+        // 뱅종인데 서버 오류일 수 있으니 시간 저장하여 추후 확인.
+        if (dbData.online && !newData.online) {
+            try {
+                let refOffTime = admin.database().ref('offtime/' + member.id);
+                await refOffTime.set(Date.now());
+            } catch (err) {
+                functions.logger.error("Fail to set offline time.", member.id, err);
+            }
+        }
+
+        // 뱅온 알림이 울릴 조건일 때 이전 뱅종 시간 대비 충분한 시간이 지나지 않았으면 알림을 울리지 않도록 함.
+        let ignoreOnline = false;
+        if (!dbData.online && newData.online) {
+            let offTime = 0;
+            try {
+                let refOffTime = admin.database().ref('offtime/' + member.id);
+                offTime = (await refOffTime.get()).val();
+            } catch (err) {
+                functions.logger.error("Fail to get offline time.", member.id, err);
+            }
+
+            let now = Date.now();
+            if (now - offTime < 25 * 1000) {
+                ignoreOnline = true;
+                functions.logger.info("Online notification is ignored.")
+            }
+        }
+
         if (dbData.online !== newData.online
             || dbData.title !== newData.title
             || dbData.category !== newData.category
@@ -79,8 +107,12 @@ async function streamJob() {
                 .catch((err) => functions.logger.error("Fail to update the stream data.", err));
             jobs.push(dbJob);
 
+            if (ignoreOnline) {
+                dbData.online = newData.online;
+            }
+
             // 방종은 알리지 않음.
-            if (newData.online
+            if ((newData.online && !ignoreOnline)
                 || dbData.title !== newData.title
                 || dbData.category !== newData.category
             ) {
