@@ -4,6 +4,7 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { ClientCredentialsAuthProvider } from '@twurple/auth';
 import { ApiClient } from '@twurple/api';
+import { TwitterApi } from 'twitter-api-v2';
 
 import TelegramBot = require('node-telegram-bot-api');
 
@@ -13,6 +14,7 @@ const clientId = process.env.TWITCH_ID;
 const clientSecret = process.env.TWITCH_SEC;
 const botToken = process.env.BOT_TOKEN;
 const httpKey = process.env.HTTP_JOB_KEY;
+const twitterKey = process.env.TWITTER_KEY;
 
 let authProvider: ClientCredentialsAuthProvider | null = null;
 let apiClient: ApiClient | null = null;
@@ -26,14 +28,19 @@ if (botToken) {
     bot = new TelegramBot(botToken);
 }
 
+let twitterClient: TwitterApi | null = null;
+if (twitterKey) {
+    twitterClient = new TwitterApi(twitterKey);
+}
+
 const members = [
-    { id: 'jururu', twitchId: 'cotton__123',  },
-    { id: 'jingburger', twitchId: 'jingburger' },
-    { id: 'viichan', twitchId: 'viichan6' },
-    { id: 'gosegu', twitchId: 'gosegugosegu' },
-    { id: 'lilpa', twitchId: 'lilpaaaaaa' },
-    { id: 'ine', twitchId: 'vo_ine' },
-    //{ id: 'wak', twitchId: 'woowakgood' },
+    { id: 'jururu', name: '주르르', twitchId: 'cotton__123',  },
+    { id: 'jingburger', name: '징버거', twitchId: 'jingburger' },
+    { id: 'viichan', name: '비챤', twitchId: 'viichan6' },
+    { id: 'gosegu', name: '고세구', twitchId: 'gosegugosegu' },
+    { id: 'lilpa', name: '릴파', twitchId: 'lilpaaaaaa' },
+    { id: 'ine', name: '아이네', twitchId: 'vo_ine' },
+    //{ id: 'wak', name: '우왁굳', twitchId: 'woowakgood' },
 ];
 
 async function sendTelegram(bot: TelegramBot, id: string, msg: string): Promise<void> {
@@ -42,9 +49,13 @@ async function sendTelegram(bot: TelegramBot, id: string, msg: string): Promise<
     });
 }
 
+async function sendTweet(client: TwitterApi, msg: string): Promise<void> {
+    await client.v1.tweet(msg);
+}
+
 async function streamJob() {
-    if (apiClient === null || bot === null) {
-        functions.logger.warn("Twitch or Telegram are not prepared!");
+    if (apiClient === null || bot === null || twitterClient === null) {
+        functions.logger.warn("Twitch or Telegram or Twitter are not prepared!");
         return;
     }
 
@@ -174,7 +185,13 @@ async function streamJob() {
                 if (dbData.category !== newData.category) {
                     msg += '\n' + newData.category;
                 }
-                msgJob = sendTelegram(bot, member.id, msg);
+                msgJob = sendTelegram(bot, member.id, msg)
+                    .catch((err) => functions.logger.error("Fail to send telegram.", err));
+                jobs.push(msgJob);
+
+                msg = member.name + " " + msg + "\n#이세계아이돌 #" + member.name;
+                msgJob = sendTweet(twitterClient, msg)
+                    .catch((err) => functions.logger.error("Fail to send tweet.", err));
                 jobs.push(msgJob);
             }
         }

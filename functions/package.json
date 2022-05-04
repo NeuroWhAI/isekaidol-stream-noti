@@ -18,7 +18,8 @@
     "@types/node-telegram-bot-api": "^0.56.2",
     "firebase-admin": "^10.0.2",
     "firebase-functions": "^3.18.0",
-    "node-telegram-bot-api": "^0.56.0"
+    "node-telegram-bot-api": "^0.56.0",
+    "twitter-api-v2": "^1.12.0"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.12.0",
