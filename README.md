@@ -39,6 +39,12 @@ Mobile:
 - [@lilpa_stream_noti](https://t.me/lilpa_stream_noti)
 - [@ine_stream_noti](https://t.me/ine_stream_noti)
 
+## 트위터
+
+트윗으로도 알림.
+
+- [@isekaidol_noti](https://twitter.com/isekaidol_noti)
+
 ## 구조
 
 ```mermaid
@@ -55,6 +61,7 @@ flowchart BT
     FN -- 방송 정보 갱신 --> DB
 
     FN -- 알림 요청 --> TG(Telegram)
+    FN -- 알림 요청 --> TT(Twitter)
     FN -- 구독 설정, 알림 요청 --> M(Messaging)
     TW(Twitch) -- 방송 정보 제공 --> FN
 
@@ -65,4 +72,4 @@ flowchart BT
 
 - Svelte + Typescript.
 - Firebase Hosting, Realtime Database, Cloud Functions, Messaging.
-- Twitch, Telegram API.
+- Twitch, Telegram, Twitter API.
