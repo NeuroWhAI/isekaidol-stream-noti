@@ -14,7 +14,10 @@ const clientId = process.env.TWITCH_ID;
 const clientSecret = process.env.TWITCH_SEC;
 const botToken = process.env.BOT_TOKEN;
 const httpKey = process.env.HTTP_JOB_KEY;
-const twitterKey = process.env.TWITTER_KEY;
+const twitterAppKey = process.env.TWITTER_APP_KEY;
+const twitterAppSecret = process.env.TWITTER_APP_SECRET;
+const twitterAccessToken = process.env.TWITTER_ACCESS_TOKEN;
+const twitterAccessSecret = process.env.TWITTER_ACCESS_SECRET;
 
 let authProvider: ClientCredentialsAuthProvider | null = null;
 let apiClient: ApiClient | null = null;
@@ -29,8 +32,13 @@ if (botToken) {
 }
 
 let twitterClient: TwitterApi | null = null;
-if (twitterKey) {
-    twitterClient = new TwitterApi(twitterKey);
+if (twitterAppKey && twitterAppSecret && twitterAccessToken && twitterAccessSecret) {
+    twitterClient = new TwitterApi({
+        appKey: twitterAppKey,
+        appSecret: twitterAppSecret,
+        accessToken: twitterAccessToken,
+        accessSecret: twitterAccessSecret,
+});
 }
 
 const members = [
