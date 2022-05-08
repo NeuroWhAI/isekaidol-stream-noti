@@ -71,8 +71,10 @@ async function streamJob() {
 
     for (let member of members) {
         let user = await apiClient.users.getUserByName(member.twitchId);
-        if (user === null) continue;
-        functions.logger.info("User : " + user.id);
+        if (user === null) {
+            functions.logger.error("Fail to get user by name.", member.twitchId);
+            continue;
+        }
 
         let stream = await apiClient.streams.getStreamByUserId(user.id);
         let newData = {
