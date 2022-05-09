@@ -199,7 +199,12 @@ async function streamJob() {
                     .catch((err) => functions.logger.error("Fail to send telegram.", err));
                 jobs.push(msgJob);
 
-                msg = member.name + " " + msg + "\n#이세계아이돌 #" + member.name;
+                // 중복 트윗 방지를 위해 시간 포함.
+                let now = new Date();
+                let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                now = new Date(utc + (3600000 * 9));
+
+                msg = member.name + " " + msg + "\n#이세계아이돌 #" + member.name + " " + now.toLocaleTimeString('ko-KR');
                 msgJob = sendTweet(twitterClient, msg)
                     .catch((err) => functions.logger.error("Fail to send tweet.", err));
                 jobs.push(msgJob);
