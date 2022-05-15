@@ -38,7 +38,7 @@ if (twitterAppKey && twitterAppSecret && twitterAccessToken && twitterAccessSecr
         appSecret: twitterAppSecret,
         accessToken: twitterAccessToken,
         accessSecret: twitterAccessSecret,
-});
+    });
 }
 
 const members = [
