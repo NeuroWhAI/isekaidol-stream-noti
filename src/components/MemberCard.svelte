@@ -28,7 +28,7 @@
     <div class="box">
         <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
             <Badge hidden={!online}>
-                <img src="image/{id}.png" alt="{data.name}" class="profile" style="box-shadow: 0 0 0 4px {online ? data.color : 'gray'};" />
+                <img src="image/{id}.png" alt="{data.name}" class="profile" style="--profile-color: {online ? data.color : 'gray'}" />
             </Badge>
         </a>
         <div class="info-box">
@@ -90,6 +90,8 @@
         width: 80px;
         border: 2px solid black;
         border-radius: 50%;
+        box-shadow: 0 0 0 4px var(--profile-color);
+        transition: box-shadow 0.2s;
     }
     @media (max-width: 600px) {
         img.profile {
@@ -101,6 +103,16 @@
         img.profile {
             height: 52px;
             width: 52px;
+            box-shadow: 0 0 0 3px var(--profile-color);
+        }
+    }
+
+    img.profile:hover {
+        box-shadow: 0 0 0 5px var(--profile-color);
+    }
+    @media (max-width: 520px) {
+        img.profile:hover {
+            box-shadow: 0 0 0 4px var(--profile-color);
         }
     }
 
