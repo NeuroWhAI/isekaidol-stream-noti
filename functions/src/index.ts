@@ -113,7 +113,7 @@ async function streamJob() {
             }
 
             let now = Date.now();
-            if (now - offTime < 25 * 1000) {
+            if (now - offTime < 90 * 1000) {
                 ignoreOnline = true;
                 functions.logger.info("Online notification is ignored.")
             }
