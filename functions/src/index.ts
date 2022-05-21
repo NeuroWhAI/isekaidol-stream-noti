@@ -119,23 +119,24 @@ async function streamJob() {
             }
         }
 
-        if (dbData.online !== newData.online
-            || dbData.title !== newData.title
-            || dbData.category !== newData.category
-        ) {
+        let onlineChanged = (dbData.online !== newData.online);
+        let titleChanged = (dbData.title !== newData.title);
+        let categoryChanged = (dbData.category !== newData.category);
+
+        if (onlineChanged || titleChanged || categoryChanged) {
             let dbJob = refStream.set(newData)
                 .then(() => functions.logger.info("Stream data updated."))
                 .catch((err) => functions.logger.error("Fail to update the stream data.", err));
             jobs.push(dbJob);
 
             if (ignoreOnline) {
-                dbData.online = newData.online;
+                onlineChanged = false;
             }
 
-            // 방종은 알리지 않음.
+            // 방종, 방종 상태의 카테고리 변경은 알리지 않음.
             if ((newData.online && !ignoreOnline)
-                || dbData.title !== newData.title
-                || dbData.category !== newData.category
+                || titleChanged
+                || ((newData.online || ignoreOnline) && categoryChanged)
             ) {
                 let message = {
                     data: {
@@ -143,9 +144,9 @@ async function streamJob() {
                         online: String(newData.online),
                         title: newData.title,
                         category: newData.category,
-                        onlineChanged: String(dbData.online !== newData.online),
-                        titleChanged: String(dbData.title !== newData.title),
-                        categoryChanged: String(dbData.category !== newData.category),
+                        onlineChanged: String(onlineChanged),
+                        titleChanged: String(titleChanged),
+                        categoryChanged: String(categoryChanged),
                     },
                     topic: member.id,
                     webpush: {
@@ -179,20 +180,20 @@ async function streamJob() {
                 jobs.push(msgJob);
 
                 let titleInfo = [];
-                if (dbData.online !== newData.online) {
+                if (onlineChanged) {
                     titleInfo.push(newData.online ? "뱅온" : "뱅종");
                 }
-                if (dbData.title !== newData.title) {
+                if (titleChanged) {
                     titleInfo.push("방제");
                 }
-                if (dbData.category !== newData.category) {
+                if (categoryChanged) {
                     titleInfo.push("카테고리");
                 }
                 let msg = titleInfo.join(", ") + " 알림";
-                if (dbData.title !== newData.title) {
+                if (titleChanged) {
                     msg += '\n' + newData.title;
                 }
-                if (dbData.category !== newData.category) {
+                if (categoryChanged) {
                     msg += '\n' + newData.category;
                 }
                 msgJob = sendTelegram(bot, member.id, msg)
