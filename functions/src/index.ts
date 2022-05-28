@@ -83,7 +83,7 @@ async function streamJob() {
             category: stream?.gameName ?? '',
         };
         if (stream === null) {
-            let channel = await apiClient.channels.getChannelInfo(user);
+            let channel = await apiClient.channels.getChannelInfoById(user.id);
             newData.title = channel?.title ?? '';
             newData.category = channel?.gameName ?? '';
         }
