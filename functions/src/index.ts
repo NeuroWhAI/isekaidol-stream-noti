@@ -42,13 +42,13 @@ if (twitterAppKey && twitterAppSecret && twitterAccessToken && twitterAccessSecr
 }
 
 const members = [
-    { id: 'jururu', name: '주르르', twitchId: 'cotton__123',  },
-    { id: 'jingburger', name: '징버거', twitchId: 'jingburger' },
-    { id: 'viichan', name: '비챤', twitchId: 'viichan6' },
-    { id: 'gosegu', name: '고세구', twitchId: 'gosegugosegu' },
-    { id: 'lilpa', name: '릴파', twitchId: 'lilpaaaaaa' },
-    { id: 'ine', name: '아이네', twitchId: 'vo_ine' },
-    //{ id: 'wak', name: '우왁굳', twitchId: 'woowakgood' },
+    { id: 'jururu', name: '주르르', twitchId: '203667951' },
+    { id: 'jingburger', name: '징버거', twitchId: '237570548' },
+    { id: 'viichan', name: '비챤', twitchId: '195641865' },
+    { id: 'gosegu', name: '고세구', twitchId: '707328484' },
+    { id: 'lilpa', name: '릴파', twitchId: '169700336' },
+    { id: 'ine', name: '아이네', twitchId: '702754423' },
+    //{ id: 'wak', name: '우왁굳', twitchId: '49045679 },
 ];
 
 async function sendTelegram(bot: TelegramBot, id: string, msg: string): Promise<void> {
@@ -70,20 +70,14 @@ async function streamJob() {
     let jobs = [];
 
     for (let member of members) {
-        let user = await apiClient.users.getUserByName(member.twitchId);
-        if (user === null) {
-            functions.logger.error("Fail to get user by name.", member.twitchId);
-            continue;
-        }
-
-        let stream = await apiClient.streams.getStreamByUserId(user.id);
+        let stream = await apiClient.streams.getStreamByUserId(member.twitchId);
         let newData = {
             online: stream !== null,
             title: stream?.title ?? '',
             category: stream?.gameName ?? '',
         };
         if (stream === null) {
-            let channel = await apiClient.channels.getChannelInfoById(user.id);
+            let channel = await apiClient.channels.getChannelInfoById(member.twitchId);
             newData.title = channel?.title ?? '';
             newData.category = channel?.gameName ?? '';
         }
