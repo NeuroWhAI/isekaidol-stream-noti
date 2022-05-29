@@ -27,7 +27,7 @@
 <Card tight style="margin: 0 0 10px 0">
     <div class="box">
         <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
-            <Badge hidden={!online}>
+            <Badge hidden={!online} style="display: flex">
                 <img src="image/{id}.png" title="{data.name}" alt="{data.name}" class="profile" style="--profile-color: {online ? data.color : 'gray'}" />
             </Badge>
         </a>
