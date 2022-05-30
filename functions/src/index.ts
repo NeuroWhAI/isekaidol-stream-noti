@@ -151,7 +151,7 @@ async function streamJob() {
                 jobs.push(dbJob);
 
                 // 새로 받은 정보가 이전에 바뀌기 전과 같고 그렇게 바뀐지 얼마되지 않았으면 무시.
-                const maxIgnoreTime = 20 * 1000;
+                const maxIgnoreTime = 12 * 1000;
                 if (prev.title === newData.title && now - prev.time.title < maxIgnoreTime) {
                     titleChanged = false;
                     functions.logger.info("Title notification is ignored.");
