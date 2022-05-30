@@ -127,6 +127,41 @@ async function streamJob() {
                 onlineChanged = false;
             }
 
+            // 방제, 카테고리가 짧은 시간 안에 이전 것으로 원복되었다 다시 원래대로 돌아오는 경우 알림 방지.
+            if (titleChanged || categoryChanged) {
+                let refPrev = admin.database().ref('prev/' + member.id);
+                let prev = (await refPrev.get()).val();
+
+                let now = Date.now();
+
+                // 현재 DB의 정보를 이전 데이터로 저장.
+                let newPrev = Object.assign({}, prev);
+                if (titleChanged) {
+                    newPrev.title = dbData.title;
+                    newPrev.time.title = now;
+                }
+                if (categoryChanged) {
+                    newPrev.category = dbData.category;
+                    newPrev.time.category = now;
+                }
+
+                dbJob = refPrev.set(newPrev)
+                    .then(() => functions.logger.info("Previous data updated."))
+                    .catch((err) => functions.logger.error("Fail to update the previous data.", err));
+                jobs.push(dbJob);
+
+                // 새로 받은 정보가 이전에 바뀌기 전과 같고 그렇게 바뀐지 얼마되지 않았으면 무시.
+                const maxIgnoreTime = 20 * 1000;
+                if (prev.title === newData.title && now - prev.time.title < maxIgnoreTime) {
+                    titleChanged = false;
+                    functions.logger.info("Title notification is ignored.");
+                }
+                if (prev.category === newData.category && now - prev.time.category < maxIgnoreTime) {
+                    categoryChanged = false;
+                    functions.logger.info("Category notification is ignored.");
+                }
+            }
+
             // 방종, 방종 상태의 카테고리 변경은 알리지 않음.
             if ((newData.online && !ignoreOnline)
                 || titleChanged
