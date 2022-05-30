@@ -136,6 +136,7 @@ async function streamJob() {
 
                 // 현재 DB의 정보를 이전 데이터로 저장.
                 let newPrev = Object.assign({}, prev);
+                newPrev.time = Object.assign({}, prev.time);
                 if (titleChanged) {
                     newPrev.title = dbData.title;
                     newPrev.time.title = now;
