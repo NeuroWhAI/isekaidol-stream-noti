@@ -483,6 +483,7 @@
     .channel-img {
         width: 24px;
         height: 24px;
+        background-color: white;
         border-radius: 50%;
         box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
     }
