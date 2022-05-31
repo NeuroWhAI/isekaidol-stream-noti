@@ -24,29 +24,38 @@
     }
 </script>
 
-<Card tight style="margin: 0 0 10px 0">
-    <div class="box">
-        <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
-            <Badge hidden={!online} style="display: flex">
-                <img src="image/{id}.png" title="{data.name}" alt="{data.name}" class="profile" style="--profile-color: {online ? data.color : 'gray'}" />
-            </Badge>
-        </a>
-        <div class="info-box">
+<div class="outer-box" style="--light-profile-color: {data.color + '16'}; --transparent-profile-color: {data.color + '00'}">
+    <Card tight class="{online ? 'card-highlight' : ''}">
+        <div class="box">
             <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
-                <span class="content-text" {title}>{title === '' ? "제목 없음" : title}</span>
+                <Badge hidden={!online} style="display: flex">
+                    <img src="image/{id}.png" title="{data.name}" alt="{data.name}" class="profile" style="--profile-color: {online ? data.color : 'gray'}" />
+                </Badge>
             </a>
-            <span class="content-text category">{category}</span>
-        </div>
-        <div class="right-side">
-            <Switch bind:value={subscribed} on:change={setNoti} disabled={!configAvailable} />
-            <div class="loading-spinner" hidden={!loading}>
-                <Loading />
+            <div class="info-box">
+                <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
+                    <span class="content-text" {title}>{title === '' ? "제목 없음" : title}</span>
+                </a>
+                <span class="content-text category">{category}</span>
+            </div>
+            <div class="right-side">
+                <Switch bind:value={subscribed} on:change={setNoti} disabled={!configAvailable} />
+                <div class="loading-spinner" hidden={!loading}>
+                    <Loading />
+                </div>
             </div>
         </div>
-    </div>
-</Card>
+    </Card>
+</div>
 
 <style>
+    .outer-box {
+        margin: 0 0 10px 0;
+    }
+    .outer-box > :global(.card-highlight) {
+        background-image: linear-gradient(90deg, var(--light-profile-color) 0%, var(--transparent-profile-color) 95%);
+    }
+
     .box {
         display: flex;
         flex-direction: row;
@@ -88,6 +97,7 @@
     img.profile {
         height: 80px;
         width: 80px;
+        background-color: white;
         border: 2px solid black;
         border-radius: 50%;
         box-shadow: 0 0 0 4px var(--profile-color);
