@@ -312,6 +312,35 @@
         }
     }
 
+    // 제목, 카테고리 최근 변경 여부.
+    let newTitles = {}, newCategories = {};
+    for (let id in members) {
+        newTitles[id] = false;
+        newCategories[id] = false;
+    }
+
+    // 제목, 카테고리 최근 변경 여부 갱신.
+    let prevData = null;
+    function updateNewTitleAndCategory() {
+        if (!prevData) {
+            return;
+        }
+        const maxRecentTime = 30 * 60 * 1000;
+        const now = Date.now();
+        for (let id in members) {
+            let time = prevData[id].time;
+            newTitles[id] = (now - time.title) < maxRecentTime;
+            newCategories[id] = (now - time.category) < maxRecentTime;
+        }
+    }
+
+    FireDb.onValue(FireDb.ref(database, 'prev'), (snapshot) => {
+        prevData = snapshot.val();
+        updateNewTitleAndCategory();
+    });
+
+    setInterval(updateNewTitleAndCategory, 60 * 1000);
+
     // 구독 정보가 아직 전송 대기중이면 좀 봐달라고 함.
     // 아래 메시지는 모던 브라우저에서 실제로 표시되진 않음.
     window.onbeforeunload = function(e: BeforeUnloadEvent) {
@@ -349,6 +378,8 @@
             category={streamData[id].category}
             online={streamData[id].online}
             loading={configLoadings[id]}
+            newTitle={newTitles[id]}
+            newCategory={newCategories[id]}
         />
     {/each}
     <div class="channel-title">

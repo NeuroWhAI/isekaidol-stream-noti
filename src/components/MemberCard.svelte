@@ -11,6 +11,8 @@
     export let subscribed: boolean = false;
     export let configAvailable: boolean;
     export let loading: boolean = false;
+    export let newTitle: boolean = false;
+    export let newCategory: boolean = false;
 
     const data = members[id];
 
@@ -32,9 +34,9 @@
                     <img src="image/{id}.png" title="{data.name}" alt="{data.name}" class="profile" style="--profile-color: {online ? data.color : 'gray'}" />
                 </Badge>
             </a>
-            <div class="info-box">
+            <div class="info-box" style="--new-title: {newTitle ? 'inline' : 'none'}; --new-category: {newCategory ? 'inline' : 'none'}">
                 <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
-                    <span class="content-text" {title}>{title === '' ? "제목 없음" : title}</span>
+                    <span class="content-text title" {title}>{title === '' ? "제목 없음" : title}</span>
                 </a>
                 <span class="content-text category">{category}</span>
             </div>
@@ -134,9 +136,21 @@
         white-space: nowrap;
     }
 
+    .title::before {
+        display: var(--new-title);
+        content: "*";
+        color: #ff5757;
+    }
+
     .category {
         font-size: 0.85em;
         color: gray;
+    }
+
+    .category::before {
+        display: var(--new-category);
+        content: "*";
+        color: #ff5757;
     }
 
     :global(.right-side) {
