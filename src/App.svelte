@@ -14,12 +14,26 @@
 
     const memberIds = Object.keys(members);
 
-    const local_db_key_prefix = 'isekaidol-stream-noti-neurowhai-';
-    const local_db_keys = {
-        prevToken: local_db_key_prefix + 'prev-token',
+    const localDbKeyPrefix = 'isekaidol-stream-noti-neurowhai-';
+    const localDbKeys = {
+        prevToken: localDbKeyPrefix + 'prev-token',
     };
     for (let id in members) {
-        local_db_keys[id] = local_db_key_prefix + 'member-' + id;
+        localDbKeys[id] = localDbKeyPrefix + 'member-' + id;
+    }
+
+    // Local Storage 사용 가능한지 확인.
+    let storageAvailable = true;
+    try {
+        if (window.localStorage) {
+            const testKey = localDbKeyPrefix + "db-test";
+            localStorage.setItem(testKey, "test");
+            localStorage.removeItem(testKey);
+        } else {
+            storageAvailable = false;
+        }
+    } catch (e) {
+        storageAvailable = false;
     }
 
     let streamData = {};
@@ -45,8 +59,8 @@
     let configAvailable = true;
     let msgToken = '';
 
-    if (window.localStorage) {
-        let prevToken = localStorage.getItem(local_db_keys.prevToken);
+    if (storageAvailable) {
+        let prevToken = localStorage.getItem(localDbKeys.prevToken);
         if (prevToken) {
             Sentry.setUser({ id: prevToken });
         }
@@ -117,11 +131,11 @@
             }
             if (currentToken) {
                 // 토큰 발급됨.
-                if (window.localStorage) {
-                    let prevToken = localStorage.getItem(local_db_keys.prevToken);
+                if (storageAvailable) {
+                    let prevToken = localStorage.getItem(localDbKeys.prevToken);
 
                     msgToken = currentToken;
-                    localStorage.setItem(local_db_keys.prevToken, currentToken);
+                    localStorage.setItem(localDbKeys.prevToken, currentToken);
 
                     if (prevToken !== null && prevToken !== currentToken) {
                         // 이전 토큰이 있고 비교해서 다르면 로컬 구독 정보를 다시 전송.
@@ -141,9 +155,7 @@
                                     subs = subs.split(',');
                                     for (let id of subs) {
                                         notiConfigs[id] = true;
-                                        if (window.localStorage) {
-                                            localStorage.setItem(local_db_keys[id], notiConfigs[id]);
-                                        }
+                                        localStorage.setItem(localDbKeys[id], notiConfigs[id]);
                                     }
                                 }
                             })
@@ -251,9 +263,9 @@
         delayedSendingSubs = setTimeout(() => {
             sendSubscription(msgToken)
                 .then(() => {
-                    if (window.localStorage) {
+                    if (storageAvailable) {
                         for (let id in members) {
-                            localStorage.setItem(local_db_keys[id], notiConfigs[id]);
+                            localStorage.setItem(localDbKeys[id], notiConfigs[id]);
                         }
                     }
                     console.log("Sending subscription is completed.");
@@ -300,10 +312,10 @@
 
     // 멤버별 알림 구독 여부.
     let notiConfigs = {};
-    if (window.localStorage) {
+    if (storageAvailable) {
         // 저장된 구독 정보 불러오기.
         for (let id in members) {
-            let config = localStorage.getItem(local_db_keys[id]);
+            let config = localStorage.getItem(localDbKeys[id]);
             notiConfigs[id] = config === null ? false : JSON.parse(config); // Local DB는 무조건 문자열로 저장되는 것 주의.
         }
     } else {
