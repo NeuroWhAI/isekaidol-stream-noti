@@ -84,6 +84,7 @@ messaging.onBackgroundMessage((payload) => {
     const notiOptions = {
         body: data.title + "\n" + data.category,
         icon: '/image/' + data.id + '.png',
+        badge: '/image/badge.png',
         tag: data.id,
     };
 
