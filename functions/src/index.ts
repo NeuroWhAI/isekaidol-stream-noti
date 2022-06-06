@@ -177,7 +177,6 @@ async function streamJob() {
                         onlineChanged: String(onlineChanged),
                         titleChanged: String(titleChanged),
                         categoryChanged: String(categoryChanged),
-                        preview: stream?.getThumbnailUrl(1280, 720) ?? '',
                     },
                     topic: member.id,
                     webpush: {
