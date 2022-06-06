@@ -14,6 +14,10 @@
 
     const memberIds = Object.keys(members);
 
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register("/pwa-sw.js");
+    }
+
     const localDbKeyPrefix = 'isekaidol-stream-noti-neurowhai-';
     const localDbKeys = {
         prevToken: localDbKeyPrefix + 'prev-token',
@@ -225,9 +229,14 @@
                 window.open(url, '_blank');
             };
         } catch (e) {
-            navigator.serviceWorker.getRegistrations().then((reg) => {
-                if (reg.length > 0) {
-                    reg[0].showNotification(notiTitle, notiOptions);
+            navigator.serviceWorker.getRegistrations().then((regs) => {
+                let reg = regs.find((reg) => reg.scope.endsWith('firebase-cloud-messaging-push-scope'));
+                if (!reg && regs.length > 0) {
+                    reg = regs[regs.length - 1];
+                }
+
+                if (reg) {
+                    reg.showNotification(notiTitle, notiOptions);
                 } else {
                     Sentry.captureMessage("Fail to get a service worker's registration");
                     alert(notiTitle + '\n' + notiOptions.body);

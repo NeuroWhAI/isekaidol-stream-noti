@@ -1,0 +1,21 @@
+{
+    "short_name": "이세돌 알림",
+    "name": "이세계 아이돌 방송 알림",
+    "icons": [
+        {
+            "src": "favicon.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        },
+        {
+            "src": "favicon192.png",
+            "type": "image/png",
+            "sizes": "192x192"
+        }
+    ],
+    "start_url": "/",
+    "display": "standalone",
+    "theme_color": "#e7416f",
+    "background_color": "#ffffff",
+    "description": "이세계 아이돌 뱅온 및 방제, 카테고리 변경 알림."
+}
