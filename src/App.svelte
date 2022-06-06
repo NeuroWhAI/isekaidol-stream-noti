@@ -232,7 +232,7 @@
             navigator.serviceWorker.getRegistrations().then((regs) => {
                 let reg = regs.find((reg) => reg.scope.endsWith('firebase-cloud-messaging-push-scope'));
                 if (!reg && regs.length > 0) {
-                    reg = regs[regs.length - 1];
+                    reg = regs[0];
                 }
 
                 if (reg) {
