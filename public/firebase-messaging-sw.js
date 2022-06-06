@@ -85,7 +85,6 @@ messaging.onBackgroundMessage((payload) => {
         body: data.title + "\n" + data.category,
         icon: '/image/' + data.id + '.png',
         badge: '/image/badge.png',
-        image: data.preview,
         tag: data.id,
     };
 
