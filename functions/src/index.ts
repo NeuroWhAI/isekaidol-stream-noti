@@ -85,20 +85,33 @@ async function streamJob() {
         let refStream = admin.database().ref('stream/' + member.id);
         let dbData = (await refStream.get()).val();
 
+        let onlineChanged = (dbData.online !== newData.online);
+        let titleChanged = (dbData.title !== newData.title);
+        let categoryChanged = (dbData.category !== newData.category);
+
         // 뱅종인데 서버 오류일 수 있으니 시간 저장하여 추후 확인.
-        if (dbData.online && !newData.online) {
+        let offTime = 0;
+        if (onlineChanged && !newData.online) {
             try {
                 let refOffTime = admin.database().ref('offtime/' + member.id);
-                await refOffTime.set(Date.now());
+                offTime = Date.now();
+                await refOffTime.set(offTime);
             } catch (err) {
                 functions.logger.error("Fail to set offline time.", member.id, err);
             }
         }
 
+        // 사이트 표시용 DB 갱신.
+        if (onlineChanged || titleChanged || categoryChanged) {
+            let dbJob = refStream.set(newData)
+                .then(() => functions.logger.info("Stream data updated."))
+                .catch((err) => functions.logger.error("Fail to update the stream data.", err));
+            jobs.push(dbJob);
+        }
+
         // 뱅온 알림이 울릴 조건일 때 이전 뱅종 시간 대비 충분한 시간이 지나지 않았으면 알림을 울리지 않도록 함.
-        let ignoreOnline = false;
-        if (!dbData.online && newData.online) {
-            let offTime = 0;
+        const maxOffIgnoreTime = 90 * 1000;
+        if (onlineChanged && newData.online) {
             try {
                 let refOffTime = admin.database().ref('offtime/' + member.id);
                 offTime = (await refOffTime.get()).val();
@@ -107,139 +120,136 @@ async function streamJob() {
             }
 
             let now = Date.now();
-            if (now - offTime < 90 * 1000) {
-                ignoreOnline = true;
+            if (now - offTime < maxOffIgnoreTime) {
+                onlineChanged = false;
                 functions.logger.info("Online notification is ignored.")
             }
         }
 
-        let onlineChanged = (dbData.online !== newData.online);
-        let titleChanged = (dbData.title !== newData.title);
-        let categoryChanged = (dbData.category !== newData.category);
+        // 방제, 카테고리가 짧은 시간 안에 이전 것으로 원복되었다 다시 원래대로 돌아오는 경우 알림 방지.
+        if (titleChanged || categoryChanged) {
+            let refPrev = admin.database().ref('prev/' + member.id);
+            let prev = (await refPrev.get()).val();
 
-        if (onlineChanged || titleChanged || categoryChanged) {
-            let dbJob = refStream.set(newData)
-                .then(() => functions.logger.info("Stream data updated."))
-                .catch((err) => functions.logger.error("Fail to update the stream data.", err));
+            let now = Date.now();
+
+            // 현재 DB의 정보를 이전 데이터로 저장.
+            let newPrev = Object.assign({}, prev);
+            newPrev.time = Object.assign({}, prev.time);
+            if (titleChanged) {
+                newPrev.title = dbData.title;
+                newPrev.time.title = now;
+            }
+            if (categoryChanged) {
+                newPrev.category = dbData.category;
+                newPrev.time.category = now;
+            }
+
+            let dbJob = refPrev.set(newPrev)
+                .then(() => functions.logger.info("Previous data updated."))
+                .catch((err) => functions.logger.error("Fail to update the previous data.", err));
             jobs.push(dbJob);
 
-            if (ignoreOnline) {
-                onlineChanged = false;
+            // 새로 받은 정보가 이전에 바뀌기 전과 같고 그렇게 바뀐지 얼마되지 않았으면 무시.
+            const maxIgnoreTime = 12 * 1000;
+            if (prev.title === newData.title && now - prev.time.title < maxIgnoreTime) {
+                titleChanged = false;
+                functions.logger.info("Title notification is ignored.");
             }
-
-            // 방제, 카테고리가 짧은 시간 안에 이전 것으로 원복되었다 다시 원래대로 돌아오는 경우 알림 방지.
-            if (titleChanged || categoryChanged) {
-                let refPrev = admin.database().ref('prev/' + member.id);
-                let prev = (await refPrev.get()).val();
-
-                let now = Date.now();
-
-                // 현재 DB의 정보를 이전 데이터로 저장.
-                let newPrev = Object.assign({}, prev);
-                newPrev.time = Object.assign({}, prev.time);
-                if (titleChanged) {
-                    newPrev.title = dbData.title;
-                    newPrev.time.title = now;
-                }
-                if (categoryChanged) {
-                    newPrev.category = dbData.category;
-                    newPrev.time.category = now;
-                }
-
-                dbJob = refPrev.set(newPrev)
-                    .then(() => functions.logger.info("Previous data updated."))
-                    .catch((err) => functions.logger.error("Fail to update the previous data.", err));
-                jobs.push(dbJob);
-
-                // 새로 받은 정보가 이전에 바뀌기 전과 같고 그렇게 바뀐지 얼마되지 않았으면 무시.
-                const maxIgnoreTime = 12 * 1000;
-                if (prev.title === newData.title && now - prev.time.title < maxIgnoreTime) {
-                    titleChanged = false;
-                    functions.logger.info("Title notification is ignored.");
-                }
-                if (prev.category === newData.category && now - prev.time.category < maxIgnoreTime) {
-                    categoryChanged = false;
-                    functions.logger.info("Category notification is ignored.");
-                }
+            if (prev.category === newData.category && now - prev.time.category < maxIgnoreTime) {
+                categoryChanged = false;
+                functions.logger.info("Category notification is ignored.");
             }
+        }
 
-            // 방종, 방종 상태의 카테고리 변경은 알리지 않음.
-            if ((newData.online && !ignoreOnline)
-                || titleChanged
-                || ((newData.online || ignoreOnline) && categoryChanged)
-            ) {
-                let message = {
-                    data: {
-                        id: member.id,
-                        online: String(newData.online),
-                        title: newData.title,
-                        category: newData.category,
-                        onlineChanged: String(onlineChanged),
-                        titleChanged: String(titleChanged),
-                        categoryChanged: String(categoryChanged),
-                    },
-                    topic: member.id,
-                    webpush: {
-                        headers: {
-                            "TTL": "1200",
-                            "Urgency": "high",
-                        }
+        // 카테고리 변경의 경우 방종 상태에선 알리지 않을건데
+        // 일시적 오류로 방종 인식된 경우 대응을 위해 마지막 방종 시간 얻어 확인.
+        if (categoryChanged && !newData.online && offTime <= 0) {
+            try {
+                let refOffTime = admin.database().ref('offtime/' + member.id);
+                offTime = (await refOffTime.get()).val();
+            } catch (err) {
+                functions.logger.error("Fail to get offline time.", member.id, err);
+            }
+        }
+
+        // 알림 전송.
+        // 단, 방종 및 방종 상태의 카테고리 변경은 알리지 않음.
+        if ((onlineChanged && newData.online)
+            || titleChanged
+            || (categoryChanged && (newData.online || (Date.now() - offTime < maxOffIgnoreTime)))
+        ) {
+            let message = {
+                data: {
+                    id: member.id,
+                    online: String(newData.online),
+                    title: newData.title,
+                    category: newData.category,
+                    onlineChanged: String(onlineChanged),
+                    titleChanged: String(titleChanged),
+                    categoryChanged: String(categoryChanged),
+                },
+                topic: member.id,
+                webpush: {
+                    headers: {
+                        "TTL": "1200",
+                        "Urgency": "high",
                     }
-                };
+                }
+            };
 
-                let msgJob = admin.messaging().send(message)
-                    .then((res) => functions.logger.info("Messaging success.", message, res))
-                    .catch(async (err) => {
-                        functions.logger.info("Messaging fail and will retry.", message, err);
-                        const maxRetry = 3;
-                        for (let retry = 1; retry <= maxRetry; retry++) {
-                            try {
-                                await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retry)));
-                                const res = await admin.messaging().send(message);
-                                functions.logger.info("Messaging success.", message, res);
-                                break;
-                            } catch (err) {
-                                if (retry >= maxRetry) {
-                                    functions.logger.error("Messaging fail.", message, err);
-                                } else {
-                                    functions.logger.info("Messaging fail again and will retry.", message, err);
-                                }
+            let msgJob = admin.messaging().send(message)
+                .then((res) => functions.logger.info("Messaging success.", message, res))
+                .catch(async (err) => {
+                    functions.logger.info("Messaging fail and will retry.", message, err);
+                    const maxRetry = 3;
+                    for (let retry = 1; retry <= maxRetry; retry++) {
+                        try {
+                            await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retry)));
+                            const res = await admin.messaging().send(message);
+                            functions.logger.info("Messaging success.", message, res);
+                            break;
+                        } catch (err) {
+                            if (retry >= maxRetry) {
+                                functions.logger.error("Messaging fail.", message, err);
+                            } else {
+                                functions.logger.info("Messaging fail again and will retry.", message, err);
                             }
                         }
-                    });
-                jobs.push(msgJob);
+                    }
+                });
+            jobs.push(msgJob);
 
-                let titleInfo = [];
-                if (onlineChanged) {
-                    titleInfo.push(newData.online ? "뱅온" : "뱅종");
-                }
-                if (titleChanged) {
-                    titleInfo.push("방제");
-                }
-                if (categoryChanged) {
-                    titleInfo.push("카테고리");
-                }
-                let msg = titleInfo.join(", ") + " 알림";
-                if (titleChanged) {
-                    msg += '\n' + newData.title;
-                }
-                if (categoryChanged) {
-                    msg += '\n' + newData.category;
-                }
-                msgJob = sendTelegram(bot, member.id, msg)
-                    .catch((err) => functions.logger.error("Fail to send telegram.", err));
-                jobs.push(msgJob);
-
-                // 중복 트윗 방지를 위해 시간 포함.
-                let now = new Date();
-                let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-                now = new Date(utc + (3600000 * 9));
-
-                msg = member.name + " " + msg + "\n#이세돌 #이세계아이돌 #" + member.name + " " + now.toLocaleTimeString('ko-KR');
-                msgJob = sendTweet(twitterClient, msg)
-                    .catch((err) => functions.logger.error("Fail to send tweet.", err));
-                jobs.push(msgJob);
+            let titleInfo = [];
+            if (onlineChanged) {
+                titleInfo.push(newData.online ? "뱅온" : "뱅종");
             }
+            if (titleChanged) {
+                titleInfo.push("방제");
+            }
+            if (categoryChanged) {
+                titleInfo.push("카테고리");
+            }
+            let msg = titleInfo.join(", ") + " 알림";
+            if (titleChanged) {
+                msg += '\n' + newData.title;
+            }
+            if (categoryChanged) {
+                msg += '\n' + newData.category;
+            }
+            msgJob = sendTelegram(bot, member.id, msg)
+                .catch((err) => functions.logger.error("Fail to send telegram.", err));
+            jobs.push(msgJob);
+
+            // 중복 트윗 방지를 위해 시간 포함.
+            let now = new Date();
+            let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            now = new Date(utc + (3600000 * 9));
+
+            msg = member.name + " " + msg + "\n#이세돌 #이세계아이돌 #" + member.name + " " + now.toLocaleTimeString('ko-KR');
+            msgJob = sendTweet(twitterClient, msg)
+                .catch((err) => functions.logger.error("Fail to send tweet.", err));
+            jobs.push(msgJob);
         }
     }
 
