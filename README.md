@@ -11,8 +11,9 @@
   (웹 페이지를 열어두지 않아도 됨.)
   - 방송이 켜짐.
   - 채널의 제목이 변경됨.
-  - 채널의 카테고리(게임)가 변경됨.
+  - 방송 중 채널의 카테고리(게임)가 변경됨.
 - 웹 페이지에서 채널별 알림 구독 여부 설정 및 최근 정보 확인.
+- 웹 페이지에서 멤버별 디스코드 웹훅 등록.
 
 PC:  
 ![PC Noti](./res/noti.png)  
@@ -39,6 +40,12 @@ Mobile:
 - [@lilpa_stream_noti](https://t.me/lilpa_stream_noti)
 - [@ine_stream_noti](https://t.me/ine_stream_noti)
 
+## 디스코드 웹훅
+
+동일 내용을 디스코드 웹훅으로도 알림.
+
+![Discord Noti](./res/dico.png)
+
 ## 트위터
 
 트윗으로도 알림.
@@ -60,8 +67,7 @@ flowchart BT
     DB -- 구독 변경 트리거 --> FN(Cloud Functions)
     FN -- 방송 정보 갱신 --> DB
 
-    FN -- 알림 요청 --> TG(Telegram)
-    FN -- 알림 요청 --> TT(Twitter)
+    FN -- 알림 요청 --> END(Telegram, Twitter, Discord)
     FN -- 구독 설정, 알림 요청 --> M(Messaging)
     TW(Twitch) -- 방송 정보 제공 --> FN
 
@@ -72,4 +78,4 @@ flowchart BT
 
 - Svelte + Typescript.
 - Firebase Hosting, Realtime Database, Cloud Functions, Messaging.
-- Twitch, Telegram, Twitter API.
+- Twitch, Telegram, Twitter API, Discord Webhook.
