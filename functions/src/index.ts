@@ -5,6 +5,7 @@ import * as admin from 'firebase-admin';
 import { ClientCredentialsAuthProvider } from '@twurple/auth';
 import { ApiClient } from '@twurple/api';
 import { TwitterApi } from 'twitter-api-v2';
+import { HexColorString, MessageEmbed, WebhookClient, Constants } from 'discord.js';
 
 import TelegramBot = require('node-telegram-bot-api');
 
@@ -41,14 +42,20 @@ if (twitterAppKey && twitterAppSecret && twitterAccessToken && twitterAccessSecr
     });
 }
 
-const members = [
-    { id: 'jururu', name: '주르르', twitchId: '203667951' },
-    { id: 'jingburger', name: '징버거', twitchId: '237570548' },
-    { id: 'viichan', name: '비챤', twitchId: '195641865' },
-    { id: 'gosegu', name: '고세구', twitchId: '707328484' },
-    { id: 'lilpa', name: '릴파', twitchId: '169700336' },
-    { id: 'ine', name: '아이네', twitchId: '702754423' },
-    //{ id: 'wak', name: '우왁굳', twitchId: '49045679 },
+interface MemberData {
+    id: string,
+    name: string,
+    twitchId: string,
+    twitchName: string,
+    color: HexColorString,
+}
+const members: MemberData[] = [
+    { id: 'jururu', name: '주르르', twitchId: '203667951', twitchName: 'cotton__123', color: '#800080' },
+    { id: 'jingburger', name: '징버거', twitchId: '237570548', twitchName: 'jingburger', color: '#f0a957' },
+    { id: 'viichan', name: '비챤', twitchId: '195641865', twitchName: 'viichan6', color: '#85ac20' },
+    { id: 'gosegu', name: '고세구', twitchId: '707328484', twitchName: 'gosegugosegu', color: '#467ec6' },
+    { id: 'lilpa', name: '릴파', twitchId: '169700336', twitchName: 'lilpaaaaaa', color: '#000080' },
+    { id: 'ine', name: '아이네', twitchId: '702754423', twitchName: 'vo_ine', color: '#8a2be2' },
 ];
 
 async function sendTelegram(bot: TelegramBot, id: string, msg: string): Promise<void> {
@@ -61,13 +68,31 @@ async function sendTweet(client: TwitterApi, msg: string): Promise<void> {
     await client.v1.tweet(msg);
 }
 
+async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string, msgContent: string, timestamp: Date): Promise<void> {
+    let webhookClient = new WebhookClient({ url: 'https://discord.com/api/webhooks/' + urlKey });
+
+    let embed = new MessageEmbed()
+        .setTitle(msgTitle)
+        .setColor(member.color)
+        .setURL('https://www.twitch.tv/' + member.twitchName)
+        .setDescription(msgContent)
+        .setImage(`https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-1280x720.jpg?tt=${Date.now()}`)
+        .setTimestamp(timestamp);
+
+    await webhookClient.send({
+        username: member.name + ' 방송',
+        avatarURL: `https://isekaidol-stream-noti.web.app/image/${member.id}.png`,
+        embeds: [embed],
+    });
+}
+
 async function streamJob() {
     if (apiClient === null || bot === null || twitterClient === null) {
         functions.logger.warn("Twitch or Telegram or Twitter are not prepared!");
         return;
     }
 
-    let jobs = [];
+    let jobs: Promise<any>[] = [];
 
     for (let member of members) {
         let stream = await apiClient.streams.getStreamByUserId(member.twitchId);
@@ -198,7 +223,7 @@ async function streamJob() {
                 }
             };
 
-            let msgJob = admin.messaging().send(message)
+            let msgJob: Promise<any> = admin.messaging().send(message)
                 .then((res) => functions.logger.info("Messaging success.", message, res))
                 .catch(async (err) => {
                     functions.logger.info("Messaging fail and will retry.", message, err);
@@ -220,7 +245,7 @@ async function streamJob() {
                 });
             jobs.push(msgJob);
 
-            let titleInfo = [];
+            let titleInfo: string[] = [];
             if (onlineChanged) {
                 titleInfo.push(newData.online ? "뱅온" : "뱅종");
             }
@@ -249,6 +274,37 @@ async function streamJob() {
             msg = member.name + " " + msg + "\n#이세돌 #이세계아이돌 #" + member.name + " " + now.toLocaleTimeString('ko-KR');
             msgJob = sendTweet(twitterClient, msg)
                 .catch((err) => functions.logger.error("Fail to send tweet.", err));
+            jobs.push(msgJob);
+
+            // 디스코드 웹훅 실행.
+            now = new Date();
+            let refDiscord = admin.database().ref('discord/' + member.id);
+            msgJob = refDiscord.get().then((snapshot) => {
+                let msgTitle = titleInfo.join(", ") + " 알림";
+                let msgContent = newData.title + '\n' + newData.category;
+
+                let discordJobs = [];
+                for (let key in snapshot.val()) {
+                    let discoJob = sendDiscord(key.replace('|', '/'), member, msgTitle, msgContent, now)
+                        .catch((err) => {
+                            functions.logger.error("Fail to send discord.", key, err);
+
+                            // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
+                            if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
+                                || err.code === Constants.APIErrors.INVALID_WEBHOOK_TOKEN
+                            ) {
+                                let refHook = admin.database().ref('discord/' + member.id + '/' + key);
+                                return refHook.remove()
+                                    .then(() => functions.logger.info("Remove an invalid webhook.", key))
+                                    .catch((err) => functions.logger.error("Fail to remove an invalid webhook.", key, err));
+                            }
+                            return Promise.resolve();
+                        });
+                    discordJobs.push(discoJob);
+                }
+
+                return Promise.allSettled(discordJobs);
+            });
             jobs.push(msgJob);
         }
     }

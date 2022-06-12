@@ -16,6 +16,7 @@
     "@twurple/api": "^5.0.18",
     "@twurple/auth": "^5.0.18",
     "@types/node-telegram-bot-api": "^0.57.1",
+    "discord.js": "^13.8.0",
     "firebase-admin": "^10.0.2",
     "firebase-functions": "^3.18.0",
     "node-telegram-bot-api": "^0.57.0",
