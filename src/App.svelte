@@ -8,6 +8,7 @@
 
     import MemberCard from './components/MemberCard.svelte';
     import HelpContent from './components/HelpContent.svelte';
+    import WebhookForm from './components/WebhookForm.svelte';
 
     import { messaging, database } from './server';
     import members from './data/members';
@@ -378,6 +379,30 @@
     }
 
     let helpDlgOpen = false;
+    let webhookDlgOpen = false;
+    let currentWebhookMember = memberIds[0];
+    let webhookState: 'ready' | 'loading' | 'complete' | 'error' = 'ready';
+
+    function openWebhookDlg(id: string) {
+        currentWebhookMember = id;
+        if (webhookState !== 'loading') {
+            webhookState = 'ready';
+        }
+        webhookDlgOpen = true;
+    }
+
+    function registerWebhook(event: CustomEvent) {
+        const memberId = event.detail.id;
+        const webhookKey = event.detail.webhook;
+
+        webhookState = 'loading';
+
+        let key = 'discord/' + memberId + '/' + webhookKey;
+        FireDb.set(FireDb.ref(database, key), 1)
+            .then(() => new Promise((resolve) => setTimeout(resolve, 500)))
+            .then(() => webhookState = 'complete')
+            .catch(() => webhookState = 'error');
+    }
 </script>
 
 <main>
@@ -405,14 +430,23 @@
         />
     {/each}
     <div class="channel-title">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-telegram" viewBox="0 0 16 16">
-            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8.287 5.906c-.778.324-2.334.994-4.666 2.01-.378.15-.577.298-.595.442-.03.243.275.339.69.47l.175.055c.408.133.958.288 1.243.294.26.006.549-.1.868-.32 2.179-1.471 3.304-2.214 3.374-2.23.05-.012.12-.026.166.016.047.041.042.12.037.141-.03.129-1.227 1.241-1.846 1.817-.193.18-.33.307-.358.336a8.154 8.154 0 0 1-.188.186c-.38.366-.664.64.015 1.088.327.216.589.393.85.571.284.194.568.387.936.629.093.06.183.125.27.187.331.236.63.448.997.414.214-.02.435-.22.547-.82.265-1.417.786-4.486.906-5.751a1.426 1.426 0 0 0-.013-.315.337.337 0 0 0-.114-.217.526.526 0 0 0-.31-.093c-.3.005-.763.166-2.984 1.09z"/>
-        </svg>
+        <svg width="16" height="16" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Telegram</title><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
         <span>&nbsp;텔레그램 채널에서도 알려드려요.</span>
     </div>
     <div class="channel-box">
         {#each memberIds as id}
             <Button round small href="https://t.me/{id}_stream_noti" target="_blank">
+                <img class="channel-img" alt="{id}" src="image/{id}.png" />
+            </Button>
+        {/each}
+    </div>
+    <div class="webhook-title">
+        <svg width="16" height="16" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Discord</title><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+        <span>&nbsp;디스코드 웹훅도 지원해요.</span>
+    </div>
+    <div class="webhook-box">
+        {#each memberIds as id}
+            <Button round small on:click={() => openWebhookDlg(id)}>
                 <img class="channel-img" alt="{id}" src="image/{id}.png" />
             </Button>
         {/each}
@@ -423,6 +457,17 @@
     <Modal bind:open={helpDlgOpen} let:closeCallback>
         <Dialog title="도움말" {closeCallback}>
             <HelpContent />
+        </Dialog>
+    </Modal>
+</div>
+<div class="modal-box">
+    <Modal bind:open={webhookDlgOpen} let:closeCallback>
+        <Dialog title="디스코드 웹훅" {closeCallback}>
+            <WebhookForm
+                memberId={currentWebhookMember}
+                state={webhookState}
+                on:register={registerWebhook}
+            />
         </Dialog>
     </Modal>
 </div>
@@ -510,24 +555,29 @@
     }
 
     .channel-title {
+        margin: 24px 0 0 0;
+    }
+    .webhook-title {
+        margin: 16px 0 0 0;
+    }
+    .channel-title, .webhook-title {
         display: flex;
         flex-direction: row;
         justify-content: center;
         align-items: baseline;
-        margin: 24px 0 0 0;
     }
     @media (max-width: 600px) {
-        .channel-title {
+        .channel-title, .webhook-title {
             font-size: 0.9em;
         }
     }
     @media (max-width: 520px) {
-        .channel-title {
+        .channel-title, .webhook-title {
             font-size: 0.8em;
         }
     }
 
-    .channel-box {
+    .channel-box, .webhook-box {
         display: flex;
         flex-direction: row;
         justify-content: center;
