@@ -394,3 +394,35 @@ exports.updateSub = functions.database.ref('/users/{user}').onWrite(async (snaps
 
     return null;
 });
+
+exports.checkWebhook = functions.database.ref('/discord/{member}/{webhook}').onCreate(async (snapshot, context) => {
+    let memberId = context.params.member;
+    let webhookKey = context.params.webhook;
+
+    let member = members.find((data) => data.id === memberId);
+    if (!member) {
+        return null;
+    }
+
+    let msgTitle = "등록 알림";
+    let msgContent = "정상적으로 등록되었습니다.";
+
+    try {
+        await sendDiscord(webhookKey.replace('|', '/'), member, msgTitle, msgContent, new Date());
+        functions.logger.info("Webhook checked.", memberId, webhookKey);
+    } catch (err: any) {
+        // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
+        if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
+            || err.code === Constants.APIErrors.INVALID_WEBHOOK_TOKEN
+        ) {
+            let refHook = admin.database().ref('discord/' + memberId + '/' + webhookKey);
+            await refHook.remove()
+                .then(() => functions.logger.info("Remove an invalid webhook.", memberId, webhookKey))
+                .catch((err) => functions.logger.error("Fail to remove an invalid webhook.", memberId, webhookKey, err));
+        } else {
+            functions.logger.error("Fail to send welcome discord.", memberId, webhookKey, err);
+        }
+    }
+
+    return null;
+});
