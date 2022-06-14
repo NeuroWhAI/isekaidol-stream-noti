@@ -1,6 +1,7 @@
 process.env.NTBA_FIX_319 = '1';
 
 import fetch from 'node-fetch';
+import { AbortController } from "node-abort-controller";
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { ClientCredentialsAuthProvider } from '@twurple/auth';
@@ -92,12 +93,17 @@ async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string,
 }
 
 async function uploadImage(url: string): Promise<string> {
-    try {
-        const api = 'https://api.imgbb.com/1/upload';
+    const api = 'https://api.imgbb.com/1/upload';
 
-        let res = await fetch(`${api}?key=${imgUploadKey}&image=${url}&expiration=15552000`);
+    let abortCtrl = new AbortController();
+    let timeoutId = setTimeout(() => abortCtrl.abort(), 10 * 1000);
+
+    try {
+        let res = await fetch(`${api}?key=${imgUploadKey}&image=${url}&expiration=15552000`, { signal: abortCtrl.signal });
         let data: any = await res.json();
         let imgUrl = data?.data?.url;
+
+        clearTimeout(timeoutId);
 
         if (imgUrl) {
             return imgUrl;
@@ -107,6 +113,8 @@ async function uploadImage(url: string): Promise<string> {
     } catch (err) {
         functions.logger.error("Fail to upload an image.", err);
     }
+
+    clearTimeout(timeoutId);
 
     return url;
 }
