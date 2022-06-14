@@ -1,5 +1,6 @@
 process.env.NTBA_FIX_319 = '1';
 
+import fetch from 'node-fetch';
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { ClientCredentialsAuthProvider } from '@twurple/auth';
@@ -19,6 +20,7 @@ const twitterAppKey = process.env.TWITTER_APP_KEY;
 const twitterAppSecret = process.env.TWITTER_APP_SECRET;
 const twitterAccessToken = process.env.TWITTER_ACCESS_TOKEN;
 const twitterAccessSecret = process.env.TWITTER_ACCESS_SECRET;
+const imgUploadKey = process.env.IMG_UPLOAD_KEY;
 
 let authProvider: ClientCredentialsAuthProvider | null = null;
 let apiClient: ApiClient | null = null;
@@ -68,7 +70,7 @@ async function sendTweet(client: TwitterApi, msg: string): Promise<void> {
     await client.v1.tweet(msg);
 }
 
-async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string, msgContent: string, timestamp: Date): Promise<void> {
+async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string, msgContent: string, msgImg: string, timestamp: Date): Promise<void> {
     let webhookClient = new WebhookClient({ url: 'https://discord.com/api/webhooks/' + urlKey });
 
     let embed = new MessageEmbed()
@@ -76,14 +78,37 @@ async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string,
         .setColor(member.color)
         .setURL('https://www.twitch.tv/' + member.twitchName)
         .setDescription(msgContent)
-        .setImage(`https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-1280x720.jpg?tt=${Date.now()}`)
         .setTimestamp(timestamp);
+    
+    if (msgImg && msgImg !== '') {
+        embed = embed.setImage(msgImg);
+    }
 
     await webhookClient.send({
         username: member.name + ' 방송',
         avatarURL: `https://isekaidol-stream-noti.web.app/image/${member.id}.png`,
         embeds: [embed],
     });
+}
+
+async function uploadImage(url: string): Promise<string> {
+    try {
+        const api = 'https://api.imgbb.com/1/upload';
+
+        let res = await fetch(`${api}?key=${imgUploadKey}&image=${url}&expiration=15552000`);
+        let data: any = await res.json();
+        let imgUrl = data?.data?.url;
+
+        if (imgUrl) {
+            return imgUrl;
+        }
+
+        functions.logger.error("Fail to upload an image.", data);
+    } catch (err) {
+        functions.logger.error("Fail to upload an image.", err);
+    }
+
+    return url;
 }
 
 async function streamJob() {
@@ -279,13 +304,16 @@ async function streamJob() {
             // 디스코드 웹훅 실행.
             now = new Date();
             let refDiscord = admin.database().ref('discord/' + member.id);
-            msgJob = refDiscord.get().then((snapshot) => {
+            msgJob = refDiscord.get().then(async (snapshot) => {
+                let previewImg = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`;
+                previewImg = await uploadImage(previewImg);
+
                 let msgTitle = titleInfo.join(", ") + " 알림";
                 let msgContent = newData.title + '\n' + newData.category;
 
                 let discordJobs = [];
                 for (let key in snapshot.val()) {
-                    let discoJob = sendDiscord(key.replace('|', '/'), member, msgTitle, msgContent, now)
+                    let discoJob = sendDiscord(key.replace('|', '/'), member, msgTitle, msgContent, previewImg, now)
                         .catch((err) => {
                             // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
                             if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
@@ -303,7 +331,7 @@ async function streamJob() {
                     discordJobs.push(discoJob);
                 }
 
-                return Promise.allSettled(discordJobs);
+                await Promise.allSettled(discordJobs);
             });
             jobs.push(msgJob);
         }
@@ -408,7 +436,7 @@ exports.checkWebhook = functions.database.ref('/discord/{member}/{webhook}').onC
     let msgContent = "정상적으로 등록되었습니다.";
 
     try {
-        await sendDiscord(webhookKey.replace('|', '/'), member, msgTitle, msgContent, new Date());
+        await sendDiscord(webhookKey.replace('|', '/'), member, msgTitle, msgContent, '', new Date());
         functions.logger.info("Webhook checked.", memberId, webhookKey);
     } catch (err: any) {
         // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
