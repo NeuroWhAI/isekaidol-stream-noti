@@ -366,10 +366,9 @@ exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async 
 });
 
 exports.updateStreams = functions.https.onRequest(async (req, res) => {
-    functions.logger.info("Query.", req.query);
-
     // 뜻하지 않은 곳에서 요청이 올 경우 작업 방지.
     if (req.query.key !== httpKey) {
+        functions.logger.info("Invalid query.", req.query);
         res.status(403).end();
         return;
     }
