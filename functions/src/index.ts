@@ -313,8 +313,10 @@ async function streamJob() {
             now = new Date();
             let refDiscord = admin.database().ref('discord/' + member.id);
             msgJob = refDiscord.get().then(async (snapshot) => {
-                let previewImg = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`;
-                previewImg = await uploadImage(previewImg);
+                let previewImg = '';
+                if (newData.online) {
+                    previewImg = await uploadImage(`https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`);
+                }
 
                 let msgTitle = titleInfo.join(", ") + " 알림";
                 let msgContent = newData.title + '\n' + newData.category;
