@@ -501,7 +501,8 @@
 <hr />
 <footer>
     <p>NeuroWhAI</p>
-    <a href="https://github.com/NeuroWhAI/isekaidol-stream-noti" target="_blank">GitHub Repo</a>
+    <a href="https://github.com/NeuroWhAI/isekaidol-stream-noti" target="_blank">GitHub Repo</a><br>
+    <a href="https://cafe.naver.com/steamindiegame/4861856" target="_blank">팬덤 그림 by 전투개구리</a>
 </footer>
 
 <style>

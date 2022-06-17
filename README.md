@@ -79,3 +79,7 @@ flowchart BT
 - Svelte + Typescript.
 - Firebase Hosting, Realtime Database, Cloud Functions, Messaging.
 - Twitch, Telegram, Twitter API, Discord Webhook.
+
+## 저작권
+
+- 팬덤 그림(`public/image/fan_*.png`) by 전투개구리([#출처](https://cafe.naver.com/steamindiegame/4861856)에서 사용 허가 받음.)
