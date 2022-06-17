@@ -25,10 +25,12 @@
             subscribed: event.detail.value,
         });
     }
+
+    const fanImgUrl = `url("/image/fan_${id}.png")`;
 </script>
 
-<div class="outer-box" style="--light-profile-color: {data.color + '16'}; --transparent-profile-color: {data.color + '00'}">
-    <Card tight class="{online ? 'card-highlight' : ''}">
+<div class="outer-box" style="--light-profile-color: {data.color + '16'}; --transparent-profile-color: {data.color + '00'}; --fan-img: {fanImgUrl}">
+    <Card tight class="{online ? 'card-highlight' : ''} {!online && dday >= 2 ? 'card-cold-fan' : ''}">
         <div class="box">
             <div class="profile-box">
                 <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
@@ -36,7 +38,7 @@
                         <img src="image/{id}.png" title="{data.name}" alt="{data.name}" class="profile" style="--profile-color: {online ? data.color : 'gray'}" />
                     </Badge>
                 </a>
-                <div class="dday" hidden={dday < 3 || online}>D+{dday}</div>
+                <div class="dday" hidden={dday < 2 || online}>D+{dday}</div>
             </div>
             <div class="info-box" style="--new-title: {newTitle ? 'inline' : 'none'}; --new-category: {newCategory ? 'inline' : 'none'}">
                 <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
@@ -60,6 +62,12 @@
     }
     .outer-box > :global(.card-highlight) {
         background-image: linear-gradient(90deg, var(--light-profile-color) 0%, var(--transparent-profile-color) 95%);
+    }
+    .outer-box > :global(.card-cold-fan) {
+        background-image: var(--fan-img);
+        background-repeat: no-repeat;
+        background-position-x: 82%;
+        background-size: contain;
     }
 
     .box {
