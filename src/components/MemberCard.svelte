@@ -13,6 +13,7 @@
     export let loading: boolean = false;
     export let newTitle: boolean = false;
     export let newCategory: boolean = false;
+    export let dday: number = 0;
 
     const data = members[id];
 
@@ -29,11 +30,14 @@
 <div class="outer-box" style="--light-profile-color: {data.color + '16'}; --transparent-profile-color: {data.color + '00'}">
     <Card tight class="{online ? 'card-highlight' : ''}">
         <div class="box">
-            <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
-                <Badge hidden={!online} style="display: flex">
-                    <img src="image/{id}.png" title="{data.name}" alt="{data.name}" class="profile" style="--profile-color: {online ? data.color : 'gray'}" />
-                </Badge>
-            </a>
+            <div class="profile-box">
+                <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
+                    <Badge hidden={!online} style="display: flex">
+                        <img src="image/{id}.png" title="{data.name}" alt="{data.name}" class="profile" style="--profile-color: {online ? data.color : 'gray'}" />
+                    </Badge>
+                </a>
+                <div class="dday" hidden={dday < 3 || online}>D+{dday}</div>
+            </div>
             <div class="info-box" style="--new-title: {newTitle ? 'inline' : 'none'}; --new-category: {newCategory ? 'inline' : 'none'}">
                 <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
                     <span class="content-text title" {title}>{title === '' ? "제목 없음" : title}</span>
@@ -96,6 +100,17 @@
         }
     }
 
+    .profile-box {
+        display: grid;
+        align-items: end;
+        justify-items: center;
+    }
+
+    .profile-box > * {
+        grid-column-start: 1;
+        grid-row-start: 1;
+    }
+
     img.profile {
         height: 80px;
         width: 80px;
@@ -126,6 +141,17 @@
         img.profile:hover {
             box-shadow: 0 0 0 4px var(--profile-color);
         }
+    }
+
+    .dday {
+        z-index: 1;
+        font-size: 0.85em;
+        background-color: rgba(234, 234, 234, 0.9);
+        color: #333333;
+        border-radius: 1.5em;
+        padding: 0.05em 0.4em;
+        transform: translateY(0.4em);
+        min-width: 2em;
     }
 
     .content-text {

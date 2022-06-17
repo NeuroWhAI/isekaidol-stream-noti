@@ -364,6 +364,31 @@
 
     setInterval(updateNewTitleAndCategory, 60 * 1000);
 
+    // 뱅종 후 며칠 지났는지.
+    let ddays = {};
+    for (let id in members) {
+        ddays[id] = 0;
+    }
+
+    let offtime = null;
+    function updateDday() {
+        if (!offtime) {
+            return;
+        }
+        const now = Date.now();
+        for (let id in members) {
+            let elapsed = now - offtime[id];
+            ddays[id] = Math.floor(elapsed / 86400000); // Day 단위로 변환.
+        }
+    }
+
+    FireDb.onValue(FireDb.ref(database, 'offtime'), (snapshot) => {
+        offtime = snapshot.val();
+        updateDday();
+    });
+
+    setInterval(updateDday, 5 * 60 * 1000);
+
     // 구독 정보가 아직 전송 대기중이면 좀 봐달라고 함.
     // 아래 메시지는 모던 브라우저에서 실제로 표시되진 않음.
     window.onbeforeunload = function(e: BeforeUnloadEvent) {
@@ -427,6 +452,7 @@
             loading={configLoadings[id]}
             newTitle={newTitles[id]}
             newCategory={newCategories[id]}
+            dday={ddays[id]}
         />
     {/each}
     <div class="channel-title">
