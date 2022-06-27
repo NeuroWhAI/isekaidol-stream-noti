@@ -6,7 +6,7 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { ClientCredentialsAuthProvider } from '@twurple/auth';
 import { ApiClient } from '@twurple/api';
-import { TwitterApi } from 'twitter-api-v2';
+import { EUploadMimeType, TwitterApi } from 'twitter-api-v2';
 import { HexColorString, MessageEmbed, WebhookClient, Constants } from 'discord.js';
 
 import TelegramBot = require('node-telegram-bot-api');
@@ -65,8 +65,31 @@ async function sendTelegram(bot: TelegramBot, id: string, msg: string): Promise<
     await bot.sendMessage('@' + id + '_stream_noti', msg);
 }
 
-async function sendTweet(client: TwitterApi, msg: string): Promise<void> {
-    await client.v1.tweet(msg);
+async function sendTweet(client: TwitterApi, msg: string, jpgImg: string): Promise<void> {
+    let imageId = '';
+    if (jpgImg && jpgImg !== '') {
+        let abortCtrl = new AbortController();
+        let timeoutId = setTimeout(() => abortCtrl.abort(), 6 * 1000);
+
+        try {
+            let res = await fetch(jpgImg, { signal: abortCtrl.signal });
+            let buff = await res.buffer();
+
+            clearTimeout(timeoutId);
+
+            imageId = await client.v1.uploadMedia(buff, { mimeType: EUploadMimeType.Jpeg });
+        } catch (err) {
+            functions.logger.error("Fail to upload a tweet image.", err);
+        }
+
+        clearTimeout(timeoutId);
+    }
+
+    if (imageId && imageId !== '') {
+        await client.v1.tweet(msg, { media_ids: imageId });
+    } else {
+        await client.v1.tweet(msg);
+    }
 }
 
 async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string, msgContent: string, msgImg: string, timestamp: Date): Promise<void> {
@@ -236,6 +259,9 @@ async function streamJob() {
             || titleChanged
             || (categoryChanged && (newData.online || (Date.now() - offTime < maxOffIgnoreTime)))
         ) {
+            // FCM 메시지 전송.
+            //
+
             let message = {
                 data: {
                     id: member.id,
@@ -277,6 +303,9 @@ async function streamJob() {
                 });
             jobs.push(msgJob);
 
+            // 메시지 조합.
+            //
+
             let titleInfo: string[] = [];
             if (onlineChanged) {
                 titleInfo.push(newData.online ? "뱅온" : "뱅종");
@@ -287,6 +316,7 @@ async function streamJob() {
             if (categoryChanged) {
                 titleInfo.push("카테고리");
             }
+
             let msg = titleInfo.join(", ") + " 알림";
             if (titleChanged) {
                 msg += '\n' + newData.title;
@@ -294,13 +324,21 @@ async function streamJob() {
             if (categoryChanged) {
                 msg += '\n' + newData.category;
             }
+
+            // 텔레그램 전송.
+            //
+
             let telgMsg = msg;
             if (newData.online) {
                 telgMsg += `\ntinyurl.com/${member.id}-twpre?t=${Date.now()}`;
             }
+
             msgJob = sendTelegram(bot, member.id, telgMsg)
                 .catch((err) => functions.logger.error("Fail to send telegram.", err));
             jobs.push(msgJob);
+
+            // 트윗 전송.
+            //
 
             // 중복 트윗 방지를 위해 시간 포함.
             let now = new Date();
@@ -308,11 +346,19 @@ async function streamJob() {
             now = new Date(utc + (3600000 * 9));
 
             msg = member.name + " " + msg + "\n#이세돌 #이세계아이돌 #" + member.name + " " + now.toLocaleTimeString('ko-KR');
-            msgJob = sendTweet(twitterClient, msg)
+
+            let tweetImg = '';
+            if (newData.online) {
+                tweetImg = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`;
+            }
+
+            msgJob = sendTweet(twitterClient, msg, tweetImg)
                 .catch((err) => functions.logger.error("Fail to send tweet.", err));
             jobs.push(msgJob);
 
             // 디스코드 웹훅 실행.
+            //
+
             now = new Date();
             let refDiscord = admin.database().ref('discord/' + member.id);
             msgJob = refDiscord.get().then(async (snapshot) => {
