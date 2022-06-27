@@ -62,9 +62,7 @@ const members: MemberData[] = [
 ];
 
 async function sendTelegram(bot: TelegramBot, id: string, msg: string): Promise<void> {
-    await bot.sendMessage('@' + id + '_stream_noti', msg, {
-        disable_web_page_preview: true,
-    });
+    await bot.sendMessage('@' + id + '_stream_noti', msg);
 }
 
 async function sendTweet(client: TwitterApi, msg: string): Promise<void> {
@@ -296,7 +294,11 @@ async function streamJob() {
             if (categoryChanged) {
                 msg += '\n' + newData.category;
             }
-            msgJob = sendTelegram(bot, member.id, msg)
+            let telgMsg = msg;
+            if (newData.online) {
+                telgMsg += `\ntinyurl.com/${member.id}-twpre?t=${Date.now()}`;
+            }
+            msgJob = sendTelegram(bot, member.id, telgMsg)
                 .catch((err) => functions.logger.error("Fail to send telegram.", err));
             jobs.push(msgJob);
 
