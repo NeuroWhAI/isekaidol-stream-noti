@@ -20,7 +20,7 @@
     "firebase-admin": "^10.0.2",
     "firebase-functions": "^3.18.0",
     "node-abort-controller": "^3.0.1",
-    "node-fetch": "2",
+    "node-fetch": "^2.6.7",
     "node-telegram-bot-api": "^0.57.0",
     "twitter-api-v2": "^1.12.0"
   },
