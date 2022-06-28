@@ -36,7 +36,7 @@
   "dependencies": {
     "@sentry/browser": "^6.19.6",
     "@sentry/tracing": "^6.19.6",
-    "firebase": "^9.6.10",
+    "firebase": "^9.8.4",
     "sirv-cli": "^2.0.0"
   }
 }
