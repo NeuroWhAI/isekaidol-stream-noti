@@ -13,6 +13,8 @@ import TelegramBot = require('node-telegram-bot-api');
 
 admin.initializeApp();
 
+const cloudRegion = 'asia-northeast3';
+
 const clientId = process.env.TWITCH_ID;
 const clientSecret = process.env.TWITCH_SEC;
 const botToken = process.env.BOT_TOKEN;
@@ -399,7 +401,7 @@ async function streamJob() {
     await Promise.allSettled(jobs);
 }
 
-exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async (context) => {
+exports.watchStreams = functions.region(cloudRegion).pubsub.schedule('every 1 minutes').onRun(async (context) => {
     let refTime = admin.database().ref('lasttime');
     let time = (await refTime.get()).val();
     let now = Date.now();
@@ -416,7 +418,7 @@ exports.watchStreams = functions.pubsub.schedule('every 1 minutes').onRun(async 
     return null;
 });
 
-exports.updateStreams = functions.https.onRequest(async (req, res) => {
+exports.updateStreams = functions.region(cloudRegion).https.onRequest(async (req, res) => {
     // 뜻하지 않은 곳에서 요청이 올 경우 작업 방지.
     if (req.query.key !== httpKey) {
         functions.logger.info("Invalid query.", req.query);
@@ -433,7 +435,7 @@ exports.updateStreams = functions.https.onRequest(async (req, res) => {
     res.status(200).send('time:' + now);
 });
 
-exports.updateSub = functions.database.ref('/users/{user}').onWrite(async (snapshot, context) => {
+exports.updateSub = functions.region(cloudRegion).database.ref('/users/{user}').onWrite(async (snapshot, context) => {
     let user = context.params.user
         .replace(/!!!1!!!/g, '/')
         .replace(/!!!2!!!/g, '.')
@@ -481,7 +483,7 @@ exports.updateSub = functions.database.ref('/users/{user}').onWrite(async (snaps
     return null;
 });
 
-exports.checkWebhook = functions.database.ref('/discord/{member}/{webhook}').onCreate(async (snapshot, context) => {
+exports.checkWebhook = functions.region(cloudRegion).database.ref('/discord/{member}/{webhook}').onCreate(async (snapshot, context) => {
     let memberId = context.params.member;
     let webhookKey = context.params.webhook;
 
