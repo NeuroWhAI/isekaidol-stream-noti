@@ -129,7 +129,6 @@ async function uploadImage(url: string): Promise<string> {
         clearTimeout(timeoutId);
 
         if (imgUrl) {
-            functions.logger.info("Upload an image.", data);
             return imgUrl;
         }
 
