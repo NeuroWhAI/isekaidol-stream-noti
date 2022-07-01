@@ -150,6 +150,7 @@ async function streamJob() {
     }
 
     let jobs: Promise<any>[] = [];
+    let prevFcmJob: Promise<void> | null = null;
 
     for (let member of members) {
         let stream = await apiClient.streams.getStreamByUserId(member.twitchId);
@@ -283,27 +284,31 @@ async function streamJob() {
                 }
             };
 
-            let msgJob: Promise<any> = admin.messaging().send(message)
+            // FCM 전송은 동시 실행되면 오류날 가능성이 높다고 함.
+            if (prevFcmJob !== null) {
+                await prevFcmJob;
+            }
+
+            prevFcmJob = admin.messaging().send(message)
                 .then((res) => functions.logger.info("Messaging success.", message, res))
                 .catch(async (err) => {
                     functions.logger.info("Messaging fail and will retry.", message, err);
-                    const maxRetry = 3;
+                    const maxRetry = 2;
                     for (let retry = 1; retry <= maxRetry; retry++) {
                         try {
-                            await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retry)));
+                            await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retry) + Math.random() * 500));
                             const res = await admin.messaging().send(message);
                             functions.logger.info("Messaging success.", message, res);
                             break;
                         } catch (err) {
                             if (retry >= maxRetry) {
-                                functions.logger.error("Messaging fail.", message, err);
+                                functions.logger.warn("Messaging maybe fail.", message, err);
                             } else {
                                 functions.logger.info("Messaging fail again and will retry.", message, err);
                             }
                         }
                     }
                 });
-            jobs.push(msgJob);
 
             // 메시지 조합.
             //
@@ -335,7 +340,7 @@ async function streamJob() {
                 telgMsg += `\ntinyurl.com/${member.id}-twpre?t=${Date.now()}`;
             }
 
-            msgJob = sendTelegram(bot, member.id, telgMsg)
+            let msgJob: Promise<any>= sendTelegram(bot, member.id, telgMsg)
                 .catch((err) => functions.logger.error("Fail to send telegram.", err));
             jobs.push(msgJob);
 
@@ -396,6 +401,10 @@ async function streamJob() {
             });
             jobs.push(msgJob);
         }
+    }
+
+    if (prevFcmJob !== null) {
+        await prevFcmJob;
     }
 
     await Promise.allSettled(jobs);
