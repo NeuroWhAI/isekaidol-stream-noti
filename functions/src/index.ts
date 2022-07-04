@@ -63,6 +63,71 @@ const members: MemberData[] = [
     { id: 'ine', name: '아이네', twitchId: '702754423', twitchName: 'vo_ine', color: '#8a2be2' },
 ];
 
+function encodeFcmToken(token: string): string {
+    return token
+        .replace(/\//g, "!!!1!!!")
+        .replace(/\./g, "!!!2!!!")
+        .replace(/\#/g, "!!!3!!!")
+        .replace(/\$/g, "!!!4!!!")
+        .replace(/\[/g, "!!!5!!!")
+        .replace(/\]/g, "!!!6!!!");
+}
+
+function decodeFcmToken(token: string): string {
+    return token
+        .replace(/!!!1!!!/g, '/')
+        .replace(/!!!2!!!/g, '.')
+        .replace(/!!!3!!!/g, '#')
+        .replace(/!!!4!!!/g, '$')
+        .replace(/!!!5!!!/g, '[')
+        .replace(/!!!6!!!/g, ']');
+}
+
+async function removeUnregisteredTokens(tokens: string[]) {
+    let msg = {
+        data: {},
+        tokens: tokens,
+    }
+
+    const maxDbJobs = 4;
+    let dbJobs = [];
+
+    try {
+        // 실제로 메시지 보내진 않고 토큰 검증만 함.
+        let response = await admin.messaging().sendMulticast(msg, true);
+        if (response.failureCount <= 0) {
+            return;
+        }
+
+        let results = response.responses;
+        let cnt = Math.min(tokens.length, results.length);
+
+        for (let i=0; i<cnt; i++) {
+            if (!results[i].success && results[i].error?.code === 'messaging/registration-token-not-registered') {
+                let refUser = admin.database().ref('users/' + encodeFcmToken(tokens[i]));
+                let job = refUser.remove()
+                    .then(() => functions.logger.info("Remove unregistered token.", tokens[i]))
+                    .catch((err) => functions.logger.error("Fail to remove unregistered token.", err));
+                dbJobs.push(job);
+
+                if (dbJobs.length >= maxDbJobs) {
+                    await Promise.allSettled(dbJobs);
+                    dbJobs = [];
+                }
+            }
+            else if (results[i].error) {
+                functions.logger.warn("Unknown dry-run result.", results[i].error);
+            }
+        }
+    } catch (err) {
+        functions.logger.error("Fail to remove unregistered tokens.", err);
+    }
+
+    if (dbJobs.length > 0) {
+        await Promise.allSettled(dbJobs);
+    }
+}
+
 async function sendTelegram(bot: TelegramBot, id: string, msg: string): Promise<void> {
     await bot.sendMessage('@' + id + '_stream_noti', msg);
 }
@@ -444,13 +509,7 @@ exports.updateStreams = functions.region(cloudRegion).https.onRequest(async (req
 });
 
 exports.updateSub = functions.region(cloudRegion).database.ref('/users/{user}').onWrite(async (snapshot, context) => {
-    let user = context.params.user
-        .replace(/!!!1!!!/g, '/')
-        .replace(/!!!2!!!/g, '.')
-        .replace(/!!!3!!!/g, '#')
-        .replace(/!!!4!!!/g, '$')
-        .replace(/!!!5!!!/g, '[')
-        .replace(/!!!6!!!/g, ']');
+    let user = decodeFcmToken(context.params.user);
 
     let prevSubs = snapshot.before.val() ?? '';
     if (prevSubs === '') {
@@ -521,4 +580,24 @@ exports.checkWebhook = functions.region(cloudRegion).database.ref('/discord/{mem
     }
 
     return null;
+});
+
+exports.checkTokens = functions.region(cloudRegion).pubsub.schedule('every monday 09:00').timeZone('Asia/Seoul').onRun(async (context) => {
+    let refUsers = admin.database().ref('users');
+    let users = (await refUsers.get()).val();
+    
+    let tokens = [];
+    const maxTokens = 200;
+
+    for (let userToken in users) {
+        tokens.push(decodeFcmToken(userToken));
+        if (tokens.length >= maxTokens) {
+            await removeUnregisteredTokens(tokens);
+            tokens = [];
+        }
+    }
+
+    if (tokens.length > 0) {
+        await removeUnregisteredTokens(tokens);
+    }
 });
