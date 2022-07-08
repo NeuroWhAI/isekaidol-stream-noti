@@ -14,6 +14,8 @@ import TelegramBot = require('node-telegram-bot-api');
 admin.initializeApp();
 
 const cloudRegion = 'asia-southeast1';
+const subRegions = ['us-west2', 'asia-northeast1', 'asia-east2']
+const previewFuncName = 'getPreviewFrom';
 
 const clientId = process.env.TWITCH_ID;
 const clientSecret = process.env.TWITCH_SEC;
@@ -132,24 +134,14 @@ async function sendTelegram(bot: TelegramBot, id: string, msg: string): Promise<
     await bot.sendMessage('@' + id + '_stream_noti', msg);
 }
 
-async function sendTweet(client: TwitterApi, msg: string, jpgImg: string): Promise<void> {
+async function sendTweet(client: TwitterApi, msg: string, jpgImg: Buffer | null): Promise<void> {
     let imageId = '';
-    if (jpgImg && jpgImg !== '') {
-        let abortCtrl = new AbortController();
-        let timeoutId = setTimeout(() => abortCtrl.abort(), 6 * 1000);
-
+    if (jpgImg) {
         try {
-            let res = await fetch(jpgImg, { signal: abortCtrl.signal });
-            let buff = await res.buffer();
-
-            clearTimeout(timeoutId);
-
-            imageId = await client.v1.uploadMedia(buff, { mimeType: EUploadMimeType.Jpeg });
+            imageId = await client.v1.uploadMedia(jpgImg, { mimeType: EUploadMimeType.Jpeg });
         } catch (err) {
             functions.logger.error("Fail to upload a tweet image.", err);
         }
-
-        clearTimeout(timeoutId);
     }
 
     if (imageId && imageId !== '') {
@@ -180,14 +172,23 @@ async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string,
     });
 }
 
-async function uploadImage(url: string): Promise<string> {
+async function uploadImage(imgBuff: Buffer, defaultUrl: string): Promise<string> {
     const api = 'https://api.imgbb.com/1/upload';
 
     let abortCtrl = new AbortController();
     let timeoutId = setTimeout(() => abortCtrl.abort(), 10 * 1000);
 
     try {
-        let res = await fetch(`${api}?key=${imgUploadKey}&image=${url}&expiration=15552000`, { signal: abortCtrl.signal });
+        let params = new URLSearchParams();
+        params.append('key', imgUploadKey!);
+        params.append('expiration', '15552000');
+        params.append('image', imgBuff.toString('base64'));
+
+        let res = await fetch(api, {
+            signal: abortCtrl.signal,
+            method: 'POST',
+            body: params,
+        });
         let data: any = await res.json();
         let imgUrl = data?.data?.url;
 
@@ -204,7 +205,87 @@ async function uploadImage(url: string): Promise<string> {
 
     clearTimeout(timeoutId);
 
-    return url;
+    return defaultUrl;
+}
+
+async function getOnePreview(member: MemberData, region: string): Promise<{ time: number, img: string, region: string } | null> {
+    let func = region.replace('-', '');
+    func = previewFuncName + func.substring(0, 1).toUpperCase() + func.substring(1);
+    let imgUrl = `https://${region}-isekaidol-stream-noti.cloudfunctions.net/${func}`;
+
+    let abortCtrl = new AbortController();
+    let timeoutId = setTimeout(() => abortCtrl.abort(), 3 * 1000);
+
+    try {
+        let res = await fetch(`${imgUrl}?key=${httpKey}&name=${member.twitchName}`, { signal: abortCtrl.signal });
+        let data: any = await res.json();
+
+        clearTimeout(timeoutId);
+
+        if (data && data.img) {
+            return {
+                time: data.time,
+                img: data.img,
+                region: region,
+            };
+        }
+
+        functions.logger.error("Fail to get an image.", region, data);
+    } catch (err) {
+        functions.logger.warn("Fail to get an image.", region, err);
+    }
+
+    clearTimeout(timeoutId);
+
+    return null;
+}
+
+async function getLatestPreview(member: MemberData): Promise<Buffer | null> {
+    let jobs = [];
+    for (let region of subRegions) {
+        jobs.push(getOnePreview(member, region));
+    }
+
+    let latestTime = 0;
+    let latestImg: Buffer;
+    let latestRegion = cloudRegion;
+
+    let abortCtrl = new AbortController();
+    let timeoutId = setTimeout(() => abortCtrl.abort(), 3 * 1000);
+
+    try {
+        let imgUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`;
+        let res = await fetch(imgUrl, { signal: abortCtrl.signal });
+        latestImg = await res.buffer();
+
+        clearTimeout(timeoutId);
+
+        let dateHeader = res.headers.get('date');
+        latestTime = dateHeader ? Date.parse(dateHeader) : 0;
+    } catch (err) {
+        functions.logger.error("Fail to get the latest image.", err);
+        return null;
+    }
+
+    clearTimeout(timeoutId);
+
+    let results = await Promise.allSettled(jobs);
+    for (let res of results) {
+        if (res.status !== 'fulfilled' || !res.value) {
+            continue;
+        }
+
+        let data = res.value;
+        if (data.time > latestTime) {
+            latestTime = data.time;
+            latestImg = Buffer.from(data.img, 'base64');
+            latestRegion = data.region;
+        }
+    }
+
+    functions.logger.info("Getting latest preview success.", latestRegion, latestTime);
+
+    return latestImg;
 }
 
 async function streamJob() {
@@ -408,64 +489,68 @@ async function streamJob() {
                 .catch((err) => functions.logger.error("Fail to send telegram.", err));
             jobs.push(msgJob);
 
-            // 트윗 전송.
-            //
+            // 썸네일 얻고 나머지 플랫폼에 전송.
+            msgJob = getLatestPreview(member)
+                .then((imgBuff) => {
+                    let subJobs = [];
 
-            // 중복 트윗 방지를 위해 시간 포함.
-            let now = new Date();
-            let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-            now = new Date(utc + (3600000 * 9));
+                    // 트윗 전송.
+                    //
 
-            msg = member.name + " " + msg + "\n#이세돌 #이세계아이돌 #" + member.name + " " + now.toLocaleTimeString('ko-KR');
+                    // 중복 트윗 방지를 위해 시간 포함.
+                    let now = new Date();
+                    let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                    now = new Date(utc + (3600000 * 9));
 
-            let tweetImg = '';
-            if (newData.online) {
-                tweetImg = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`;
-            }
+                    msg = member.name + " " + msg + "\n#이세돌 #이세계아이돌 #" + member.name + " " + now.toLocaleTimeString('ko-KR');
 
-            msgJob = sendTweet(twitterClient, msg, tweetImg)
-                .catch((err) => functions.logger.error("Fail to send tweet.", err));
-            jobs.push(msgJob);
+                    let subJob = sendTweet(twitterClient!, msg, imgBuff)
+                        .catch((err) => functions.logger.error("Fail to send tweet.", err));
+                    subJobs.push(subJob);
 
-            // 디스코드 웹훅 실행.
-            //
+                    // 디스코드 웹훅 실행.
+                    //
 
-            now = new Date();
-            let refDiscord = admin.database().ref('discord/' + member.id);
-            msgJob = refDiscord.get().then(async (snapshot) => {
-                let previewImg = '';
-                if (newData.online) {
-                    previewImg = await uploadImage(`https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`);
-                }
+                    now = new Date();
+                    let refDiscord = admin.database().ref('discord/' + member.id);
+                    subJob = refDiscord.get().then(async (snapshot) => {
+                        let previewImg = '';
+                        if (newData.online && imgBuff) {
+                            previewImg = await uploadImage(imgBuff, `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`);
+                        }
 
-                let msgTitle = titleInfo.join(", ") + " 알림";
-                let msgContent = newData.title + '\n' + newData.category;
+                        let msgTitle = titleInfo.join(", ") + " 알림";
+                        let msgContent = newData.title + '\n' + newData.category;
 
-                let discordJobs = [];
-                for (let key in snapshot.val()) {
-                    let urlKey = key.replace('|', '/');
-                    let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
-                        .catch((err) => {
-                            // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
-                            if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
-                                || err.code === Constants.APIErrors.INVALID_WEBHOOK_TOKEN
-                            ) {
-                                let refHook = admin.database().ref('discord/' + member.id + '/' + key);
-                                return refHook.remove()
-                                    .then(() => functions.logger.info("Remove an invalid webhook.", key))
-                                    .catch((err) => functions.logger.error("Fail to remove an invalid webhook.", key, err));
-                            } else {
-                                functions.logger.info("Fail to send discord and will retry.", key, err);
+                        let discordJobs = [];
+                        for (let key in snapshot.val()) {
+                            let urlKey = key.replace('|', '/');
+                            let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                                .catch((err) => {
+                                    // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
+                                    if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
+                                        || err.code === Constants.APIErrors.INVALID_WEBHOOK_TOKEN
+                                    ) {
+                                        let refHook = admin.database().ref('discord/' + member.id + '/' + key);
+                                        return refHook.remove()
+                                            .then(() => functions.logger.info("Remove an invalid webhook.", key))
+                                            .catch((err) => functions.logger.error("Fail to remove an invalid webhook.", key, err));
+                                    } else {
+                                        functions.logger.info("Fail to send discord and will retry.", key, err);
 
-                                return sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
-                                    .catch((err) => functions.logger.error("Fail to send discord.", key, err));
-                            }
-                        });
-                    discordJobs.push(discoJob);
-                }
+                                        return sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                                            .catch((err) => functions.logger.error("Fail to send discord.", key, err));
+                                    }
+                                });
+                            discordJobs.push(discoJob);
+                        }
 
-                await Promise.allSettled(discordJobs);
-            });
+                        await Promise.allSettled(discordJobs);
+                    });
+                    subJobs.push(subJob);
+
+                    return Promise.allSettled(subJobs);
+                });
             jobs.push(msgJob);
         }
     }
@@ -604,3 +689,43 @@ exports.checkTokens = functions.region(cloudRegion).pubsub.schedule('every monda
         await removeUnregisteredTokens(tokens);
     }
 });
+
+for (let region of subRegions) {
+    let suffix = region.replace('-', '');
+    suffix = suffix.substring(0, 1).toUpperCase() + suffix.substring(1);
+
+    exports[previewFuncName + suffix] = functions.region(region).https.onRequest(async (req, res) => {
+        // 뜻하지 않은 곳에서 요청이 올 경우 작업 방지.
+        if (req.query.key !== httpKey || !req.query.name) {
+            functions.logger.info("Invalid query.", req.query);
+            res.status(403).end();
+            return;
+        }
+
+        const name = req.query.name;
+
+        let abortCtrl = new AbortController();
+        let timeoutId = setTimeout(() => abortCtrl.abort(), 3 * 1000);
+
+        try {
+            let imgUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${name}-640x360.jpg?tt=${Date.now()}`;
+            let imgRes = await fetch(imgUrl, { signal: abortCtrl.signal });
+            let img = await imgRes.buffer();
+
+            clearTimeout(timeoutId);
+
+            let dateHeader = imgRes.headers.get('date');
+            let time = dateHeader ? Date.parse(dateHeader) : 0;
+
+            res.status(200).send({
+                img: img.toString('base64'),
+                time: time,
+            });
+        } catch (err) {
+            functions.logger.error("Fail to get an image.", err);
+            res.status(200).send({});
+        }
+
+        clearTimeout(timeoutId);
+    });
+}
