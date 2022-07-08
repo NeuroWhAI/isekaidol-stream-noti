@@ -490,67 +490,70 @@ async function streamJob() {
             jobs.push(msgJob);
 
             // 썸네일 얻고 나머지 플랫폼에 전송.
-            msgJob = getLatestPreview(member)
-                .then((imgBuff) => {
-                    let subJobs = [];
+            let imgJob: Promise<Buffer | null> = Promise.resolve(null);
+            if (newData.online) {
+                imgJob = getLatestPreview(member)
+            }
+            msgJob = imgJob.then((imgBuff) => {
+                let subJobs = [];
 
-                    // 트윗 전송.
-                    //
+                // 트윗 전송.
+                //
 
-                    // 중복 트윗 방지를 위해 시간 포함.
-                    let now = new Date();
-                    let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-                    now = new Date(utc + (3600000 * 9));
+                // 중복 트윗 방지를 위해 시간 포함.
+                let now = new Date();
+                let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                now = new Date(utc + (3600000 * 9));
 
-                    msg = member.name + " " + msg + "\n#이세돌 #이세계아이돌 #" + member.name + " " + now.toLocaleTimeString('ko-KR');
+                msg = member.name + " " + msg + "\n#이세돌 #이세계아이돌 #" + member.name + " " + now.toLocaleTimeString('ko-KR');
 
-                    let subJob = sendTweet(twitterClient!, msg, imgBuff)
-                        .catch((err) => functions.logger.error("Fail to send tweet.", err));
-                    subJobs.push(subJob);
+                let subJob = sendTweet(twitterClient!, msg, imgBuff)
+                    .catch((err) => functions.logger.error("Fail to send tweet.", err));
+                subJobs.push(subJob);
 
-                    // 디스코드 웹훅 실행.
-                    //
+                // 디스코드 웹훅 실행.
+                //
 
-                    now = new Date();
-                    let refDiscord = admin.database().ref('discord/' + member.id);
-                    subJob = refDiscord.get().then(async (snapshot) => {
-                        let previewImg = '';
-                        if (newData.online && imgBuff) {
-                            previewImg = await uploadImage(imgBuff, `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`);
-                        }
+                now = new Date();
+                let refDiscord = admin.database().ref('discord/' + member.id);
+                subJob = refDiscord.get().then(async (snapshot) => {
+                    let previewImg = '';
+                    if (newData.online && imgBuff) {
+                        previewImg = await uploadImage(imgBuff, `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`);
+                    }
 
-                        let msgTitle = titleInfo.join(", ") + " 알림";
-                        let msgContent = newData.title + '\n' + newData.category;
+                    let msgTitle = titleInfo.join(", ") + " 알림";
+                    let msgContent = newData.title + '\n' + newData.category;
 
-                        let discordJobs = [];
-                        for (let key in snapshot.val()) {
-                            let urlKey = key.replace('|', '/');
-                            let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
-                                .catch((err) => {
-                                    // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
-                                    if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
-                                        || err.code === Constants.APIErrors.INVALID_WEBHOOK_TOKEN
-                                    ) {
-                                        let refHook = admin.database().ref('discord/' + member.id + '/' + key);
-                                        return refHook.remove()
-                                            .then(() => functions.logger.info("Remove an invalid webhook.", key))
-                                            .catch((err) => functions.logger.error("Fail to remove an invalid webhook.", key, err));
-                                    } else {
-                                        functions.logger.info("Fail to send discord and will retry.", key, err);
+                    let discordJobs = [];
+                    for (let key in snapshot.val()) {
+                        let urlKey = key.replace('|', '/');
+                        let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                            .catch((err) => {
+                                // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
+                                if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
+                                    || err.code === Constants.APIErrors.INVALID_WEBHOOK_TOKEN
+                                ) {
+                                    let refHook = admin.database().ref('discord/' + member.id + '/' + key);
+                                    return refHook.remove()
+                                        .then(() => functions.logger.info("Remove an invalid webhook.", key))
+                                        .catch((err) => functions.logger.error("Fail to remove an invalid webhook.", key, err));
+                                } else {
+                                    functions.logger.info("Fail to send discord and will retry.", key, err);
 
-                                        return sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
-                                            .catch((err) => functions.logger.error("Fail to send discord.", key, err));
-                                    }
-                                });
-                            discordJobs.push(discoJob);
-                        }
+                                    return sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                                        .catch((err) => functions.logger.error("Fail to send discord.", key, err));
+                                }
+                            });
+                        discordJobs.push(discoJob);
+                    }
 
-                        await Promise.allSettled(discordJobs);
-                    });
-                    subJobs.push(subJob);
-
-                    return Promise.allSettled(subJobs);
+                    await Promise.allSettled(discordJobs);
                 });
+                subJobs.push(subJob);
+
+                return Promise.allSettled(subJobs);
+            });
             jobs.push(msgJob);
         }
     }
