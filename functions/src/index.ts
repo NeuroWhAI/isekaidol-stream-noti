@@ -443,7 +443,8 @@ async function streamJob() {
 
                 let discordJobs = [];
                 for (let key in snapshot.val()) {
-                    let discoJob = sendDiscord(key.replace('|', '/'), member, msgTitle, msgContent, previewImg, now)
+                    let urlKey = key.replace('|', '/');
+                    let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
                         .catch((err) => {
                             // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
                             if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
@@ -454,9 +455,11 @@ async function streamJob() {
                                     .then(() => functions.logger.info("Remove an invalid webhook.", key))
                                     .catch((err) => functions.logger.error("Fail to remove an invalid webhook.", key, err));
                             } else {
-                                functions.logger.error("Fail to send discord.", key, err);
+                                functions.logger.info("Fail to send discord and will retry.", key, err);
+
+                                return sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                                    .catch((err) => functions.logger.error("Fail to send discord.", key, err));
                             }
-                            return Promise.resolve();
                         });
                     discordJobs.push(discoJob);
                 }
