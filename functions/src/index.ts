@@ -705,6 +705,11 @@ for (let region of subRegions) {
             return;
         }
 
+        if (req.query.ping) {
+            res.status(200).end()
+            return;
+        }
+
         const name = req.query.name;
 
         let abortCtrl = new AbortController();
