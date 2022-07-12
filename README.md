@@ -77,7 +77,7 @@ flowchart BT
 ## 사용한 것들
 
 - Svelte + Typescript.
-- Firebase Hosting, Realtime Database, Cloud Functions, Messaging.
+- Firebase Hosting, Realtime Database, Cloud Functions, Messaging, Storage.
 - Twitch, Telegram, Twitter API, Discord Webhook.
 
 ## 저작권
