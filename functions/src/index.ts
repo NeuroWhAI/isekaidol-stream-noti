@@ -694,14 +694,21 @@ for (let region of subRegions) {
 
     exports[previewFuncName + suffix] = functions.region(region).https.onRequest(async (req, res) => {
         // 뜻하지 않은 곳에서 요청이 올 경우 작업 방지.
-        if (req.query.key !== httpKey || !req.query.name) {
+        if (req.query.key !== httpKey) {
             functions.logger.info("Invalid query.", req.query);
             res.status(403).end();
             return;
         }
 
+        // 인스턴스 유지를 위한 핑 기능.
         if (req.query.ping) {
             res.status(200).end()
+            return;
+        }
+
+        if (!req.query.name) {
+            functions.logger.info("Invalid query.", req.query);
+            res.status(403).end();
             return;
         }
 
