@@ -25,7 +25,6 @@ const twitterAppKey = process.env.TWITTER_APP_KEY;
 const twitterAppSecret = process.env.TWITTER_APP_SECRET;
 const twitterAccessToken = process.env.TWITTER_ACCESS_TOKEN;
 const twitterAccessSecret = process.env.TWITTER_ACCESS_SECRET;
-const imgUploadKey = process.env.IMG_UPLOAD_KEY;
 
 let authProvider: ClientCredentialsAuthProvider | null = null;
 let apiClient: ApiClient | null = null;
@@ -172,40 +171,35 @@ async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string,
     });
 }
 
-async function uploadImage(imgBuff: Buffer, defaultUrl: string): Promise<string> {
-    const api = 'https://api.imgbb.com/1/upload';
-
-    let abortCtrl = new AbortController();
-    let timeoutId = setTimeout(() => abortCtrl.abort(), 10 * 1000);
+async function uploadImage(jpgBuff: Buffer, fileName: string): Promise<string | null> {
+    let bucket = admin.storage().bucket('isekaidol-stream-noti.appspot.com');
 
     try {
-        let params = new URLSearchParams();
-        params.append('key', imgUploadKey!);
-        params.append('expiration', '15552000');
-        params.append('image', imgBuff.toString('base64'));
+        let job = new Promise<string>((resolve, reject) => {
+            let file = bucket.file(fileName);
+            let stream = file.createWriteStream({
+                resumable: false,
+                public: true,
+                timeout: 8 * 1000,
+            });
 
-        let res = await fetch(api, {
-            signal: abortCtrl.signal,
-            method: 'POST',
-            body: params,
+            stream.on('error', reject);
+
+            stream.on('finish', () => {
+                file.getMetadata()
+                    .then(([metadata]) => resolve(metadata.mediaLink ?? null))
+                    .catch(reject);
+            });
+
+            stream.end(jpgBuff);
         });
-        let data: any = await res.json();
-        let imgUrl = data?.data?.url;
 
-        clearTimeout(timeoutId);
-
-        if (imgUrl) {
-            return imgUrl;
-        }
-
-        functions.logger.error("Fail to upload an image.", data);
+        return await job;
     } catch (err) {
         functions.logger.error("Fail to upload an image.", err);
     }
 
-    clearTimeout(timeoutId);
-
-    return defaultUrl;
+    return null;
 }
 
 async function getOnePreview(member: MemberData, region: string): Promise<{ time: number, img: string, region: string } | null> {
@@ -519,7 +513,8 @@ async function streamJob() {
                 subJob = refDiscord.get().then(async (snapshot) => {
                     let previewImg = '';
                     if (newData.online && imgBuff) {
-                        previewImg = await uploadImage(imgBuff, `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`);
+                        let defaultUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`;
+                        previewImg = await uploadImage(imgBuff, `${member.id}-${Date.now()}.jpg`) ?? defaultUrl;
                     }
 
                     let msgTitle = titleInfo.join(", ") + " 알림";
