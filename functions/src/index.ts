@@ -14,7 +14,7 @@ import TelegramBot = require('node-telegram-bot-api');
 admin.initializeApp();
 
 const cloudRegion = 'asia-southeast1';
-const subRegions = ['us-west2', 'asia-northeast1', 'asia-east2', 'asia-northeast3']
+const subRegions = ['us-west2', 'asia-northeast1', 'asia-east2', 'asia-northeast3', 'europe-west1']
 const previewFuncName = 'getPreviewFrom';
 
 const clientId = process.env.TWITCH_ID;
