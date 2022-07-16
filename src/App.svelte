@@ -16,7 +16,8 @@
     const memberIds = Object.keys(members);
 
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register("/pwa-sw.js");
+        navigator.serviceWorker.register("/pwa-sw.js")
+            .catch((err) => console.log("Fail to register a service worker for the PWA.\n" + err));
     }
 
     const localDbKeyPrefix = 'isekaidol-stream-noti-neurowhai-';
