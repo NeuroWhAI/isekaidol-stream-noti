@@ -735,7 +735,7 @@ for (let region of subRegions) {
                 time: time,
             });
         } catch (err) {
-            functions.logger.error("Fail to get an image.", err);
+            functions.logger.warn("Fail to get an image.", err);
             res.status(200).send({});
         }
 
