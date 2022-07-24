@@ -3,6 +3,7 @@
     import { Card, Switch, Badge, Loading } from 'attractions';
 
     import members from '../data/members';
+    import type { Anniversary } from '../data/members';
 
     export let id: string;
     export let title: string = "제목 없음";
@@ -27,6 +28,15 @@
     }
 
     const fanImgUrl = `url("/image/fan_${id}.png")`;
+
+    let isAnniversary = false;
+    function updateBirthday() {
+        let now = new Date();
+        let today = ((now.getMonth() + 1) + '.' + now.getDate()) as Anniversary;
+        isAnniversary = data.anniversaries.includes(today);
+    }
+    updateBirthday();
+    setInterval(updateBirthday, 60 * 1000);
 </script>
 
 <div class="outer-box" style="--light-profile-color: {data.color + '16'}; --transparent-profile-color: {data.color + '00'}; --fan-img: {fanImgUrl}">
@@ -38,6 +48,7 @@
                         <img src="image/{id}.png" title="{data.name}" alt="{data.name}" class="profile" style="--profile-color: {online ? data.color : 'gray'}" />
                     </Badge>
                 </a>
+                <img src="image/cone.png" alt="congrats" class="congrats" hidden={!isAnniversary} />
                 <div class="dday" hidden={dday < 2 || online}>D+{dday}</div>
             </div>
             <div class="info-box" style="--new-title: {newTitle ? 'inline' : 'none'}; --new-category: {newCategory ? 'inline' : 'none'}">
@@ -149,6 +160,14 @@
         img.profile:hover {
             box-shadow: 0 0 0 4px var(--profile-color);
         }
+    }
+
+    .congrats {
+        position: absolute;
+        height: 1em;
+        align-self: start;
+        transform: translateY(-0.8em);
+        pointer-events: none;
     }
 
     .dday {
