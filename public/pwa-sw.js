@@ -1,4 +1,4 @@
-const PRECACHE = 'precache-v7';
+const PRECACHE = 'precache-v8';
 const RUNTIME = 'runtime';
 
 // A list of local resources we always want to be cached.
@@ -22,6 +22,7 @@ const PRECACHE_URLS = [
     'image/fan_jururu.png',
     'image/fan_lilpa.png',
     'image/fan_viichan.png',
+    'image/cone.png',
 ];
 
 // The install handler takes care of precaching the resources we always need.

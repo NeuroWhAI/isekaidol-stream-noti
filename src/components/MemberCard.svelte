@@ -33,7 +33,7 @@
     function updateBirthday() {
         let now = new Date();
         let today = ((now.getMonth() + 1) + '.' + now.getDate()) as Anniversary;
-        isAnniversary = data.anniversaries.includes(today);
+        isAnniversary = (data.anniversary === today);
     }
     updateBirthday();
     setInterval(updateBirthday, 60 * 1000);
