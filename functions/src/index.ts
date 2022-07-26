@@ -14,8 +14,6 @@ import TelegramBot = require('node-telegram-bot-api');
 admin.initializeApp();
 
 const cloudRegion = 'asia-southeast1';
-const subRegions = ['us-west2', 'asia-northeast1', 'asia-east2', 'asia-northeast3', 'europe-west1']
-const previewFuncName = 'getPreviewFrom';
 
 const clientId = process.env.TWITCH_ID;
 const clientSecret = process.env.TWITCH_SEC;
@@ -202,86 +200,41 @@ async function uploadImage(jpgBuff: Buffer, fileName: string): Promise<string | 
     return null;
 }
 
-async function getOnePreview(member: MemberData, region: string): Promise<{ time: number, img: string, region: string } | null> {
-    let func = region.replace('-', '');
-    func = previewFuncName + func.substring(0, 1).toUpperCase() + func.substring(1);
-    let imgUrl = `https://${region}-isekaidol-stream-noti.cloudfunctions.net/${func}`;
+async function getLatestPreview(member: MemberData): Promise<Buffer | null> {
+    let refStage = admin.database().ref('preview/' + member.id);
+    let stage = (await refStage.get()).val();
+
+    let nextStage = 0;
+    if (stage > 0) {
+        nextStage = -1;
+    } else if (stage < 0) {
+        nextStage = 0;
+    } else {
+        nextStage = 1;
+    }
+    let stageJob = refStage.set(nextStage);
 
     let abortCtrl = new AbortController();
-    let timeoutId = setTimeout(() => abortCtrl.abort(), 3 * 1000);
+    let timeoutId = setTimeout(() => abortCtrl.abort(), 4 * 1000);
+
+    let imgBuff = null;
 
     try {
-        let res = await fetch(`${imgUrl}?key=${httpKey}&name=${member.twitchName}`, { signal: abortCtrl.signal });
-        let data: any = await res.json();
+        let size = `${640 + stage * 2}x${360 + stage}`;
+        let imgUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-${size}.jpg?tt=${Date.now()}`;
+        let res = await fetch(imgUrl, { signal: abortCtrl.signal });
+        imgBuff = await res.buffer();
 
-        clearTimeout(timeoutId);
-
-        if (data && data.img) {
-            return {
-                time: data.time,
-                img: data.img,
-                region: region,
-            };
-        }
-
-        functions.logger.error("Fail to get an image.", region, data);
+        functions.logger.info("Getting latest preview success.", size);
     } catch (err) {
-        functions.logger.warn("Fail to get an image.", region, err);
+        functions.logger.error("Fail to get the latest image.", err);
     }
 
     clearTimeout(timeoutId);
 
-    return null;
-}
+    await stageJob;
 
-async function getLatestPreview(member: MemberData): Promise<Buffer | null> {
-    let jobs = [];
-    for (let region of subRegions) {
-        jobs.push(getOnePreview(member, region));
-    }
-
-    // 썸네일 없을 때의 기본 base64.
-    const noPreview = '/9j/2wCEAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx4BBQUFBwYHDggIDh4UERQeHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHv/AABEIAWgCgAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/APOaKKK6iQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACkzS0JG8sqxxoXdjhVA5JoATIoyPWttfCXiBlBGnSDPYsKX/AIRHxB/0D3/76FAGHketGR61uf8ACI+IP+ge/wD30KP+ER8Qf9A9/wDvoUAYeR60ZHrW5/wiPiD/AKB7/wDfQo/4RHxB/wBA9/8AvoUAYeR60ZHrW5/wiPiD/oHv/wB9Cj/hEfEH/QPf/voUAYeR60ZHrW5/wiPiD/oHv/30KP8AhEfEH/QPf/voUAYeR60ZHrW5/wAIj4g/6B7/APfQo/4RHxB/0D3/AO+hQBh5HrRketbn/CI+IP8AoHv/AN9CkPhHxB/0D3P/AAIUAYmaWn3VtcWly1vdQvFKnVXHIplABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRSZozQAtdH8N0VvFMRZQSsTlc9jiubzXTfDT/kaF/64v/KgD1Qd+vWijuarajfW2n2xubuURRAgFjQBZorD/wCEs8P5/wCQlHn6Gj/hLPD/AP0EYvyP+FAG5RWH/wAJZ4f/AOgjF+R/wo/4Szw//wBBGL8j/hQBuUVh/wDCWeH/APoIxfkf8KP+Es8P/wDQRi/I/wCFAG5RWH/wlnh//oIxfkf8KP8AhLPD/wD0EYvyP+FAG5RWH/wlnh//AKCMX5Gj/hLPD/8A0EovyNAG5QetUtL1Sw1RHewnEyxkBiOxq73FAHnPxYVRqdi+PmaFgT64I/xrjK7X4tf8hDT/APrk/wDMVxVABRSHijI9aAFopMj1oyOPegBaKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAGSMqqWY4VRkmsxtdsw5AWVsdwKt6vxplyeRiM1xy98VLYHS/29af885vy/8Ar11vwn1S3u/F6Qxo4JgkPzD2ry+u4+CH/I9R/wDXvJ/KhMD3uuU+K9ylp4OlmkDECZB8v411hriPjZ/yIU3/AF8R/wBaoDyUa9af3Jvy/wDr0f29af8APOb8v/r1zf8AEaWouB0f9vWn/POb8v8A69H9vWn/ADzm/L/69c5RRcDo/wC3rT/nnN+X/wBej+3rT/nnN+X/ANeucoouB0f9vWn/ADzm/L/69H9vWn/POb8v/r1zlFFwOibXbPH+rm/KrljewXqFoicjqGHIrka1vC3/AB9TDn7gppgezfCP/kHah/12T/0E12/cVxHwj/5B2of9dk/9BNdvVAed/Fr/AJCGn/8AXJ/5iuJrtfi0cajp+f8Ank/8xXK6bp19qc/k2Nu8zD7xA4X3J6CgCoenFW9J0rUNUn8qyt3k9W6AfU9q7nQfAVtCFm1aT7RJ18pPlQfU9TXZW8ENtCsNvFHFGBgIigAUAcjoPgWztgsuqSfapRz5a8ID/M1xPiuNIvE2oxRIqIs7BVUYAFe0dxXjXjD/AJGvUv8Ar4agDLooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAqax/yC7n/AK5muOXqa7HWP+QXc/8AXM1xy9TUyAdXcfBD/keo/wDr3k/lXD13HwQ/5HqP/r3k/lSQHvhriPjZ/wAiFN/18R/1rtzXEfGz/kQpv+viP+tWwPAf4jS0n8RpazAKKKKACiiigAooooAK1/C//H1L/uCsitfwv/x9S/7gpoD2X4R/8g7UP+uyf+gmu3P4/hXEfCP/AJB2of8AXZP/AEE129WBj634estYvoLm9aR0hQqI1OA2cHmtK0tre0gWC1gjhiX7qouAKmooAKKKKADuK8a8Yf8AI16l/wBfDV7L3FeNeMP+Rr1L/r4agDLooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAqax/yC7n/rma45eprsdY/wCQXc/9czXHL1NTIB1dx8EP+R6j/wCveT+VcPXcfBD/AJHqP/r3k/lSQHvhriPjZ/yIU3/XxH/Wu3NcR8bP+RCm/wCviP8ArVsDwH+I0tJ/EaWswCiiigAooooAKKKKADvWv4X5upcf3BWOaltLma23GFyhYYJFNAe8fCMj+z9RGeRMmfb5TXb15h+z4zNpOsFiSTcx8k5z8pr0+rAKKKKACiiigA7ivGvGH/I16l/18NXsvcV414w/5GvUv+vhqAMuiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigCprH/ILuf+uZrjl6mux1j/kF3P8A1zNccvU1MgHV3HwQ/wCR6j/695P5Vw9dx8EP+R6j/wCveT+VJAe+GuI+Nn/IhTf9fEf9a7c1xHxs/wCRCm/6+I/61bA8B/iNLSfxGlrMAooooAKKKKACiiigApDS0hoA9k/Z6/5A+sf9fMf/AKCa9Qry/wDZ6/5A+sf9fMf/AKCa9QNWgCisjVvEekaTqdtp+o3S20t0paJpBhDg469utaqsrorIysp6MpyDTAdRRRQAdxXjXjD/AJGvUv8Ar4avZe4rxrxh/wAjXqX/AF8NQBl0UUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAVNY/5Bdz/wBczXHL1NdjrH/ILuf+uZrjl6mpkA6u4+CH/I9R/wDXvJ/KuHruPgh/yPUf/XvJ/KkgPfDXEfGz/kQpv+viP+tdua4j42f8iFN/18R/1q2B4D/EaWk/iNLWYBRRRQAUUUUAFFFFABSGlpDQB7J+z1/yB9Y/6+Y//QTXqFeX/s9f8gfWP+vmP/0E16hWiA8a/aFGdW0of9MJP5rXJeFPGmu+HnVbW4M1twDbzZZce3cV137Qn/IX0r/rjJ/Na8wqXuB9CeEfHml67bI04NhcMcGOQ/KT7N0/lXXAjbkcgnsa+c/Dv/ILXP8Afaus0HxPqmkFUjl86Af8sZDkD6elUB7D3FeNeMP+Rr1L/r4avRNB8X6VqZWJ5DaXB/5Zy8A/Q9/88V514w58U6njGPtDd80AZlFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAFTWP8AkF3P/XM1xy9TXY6x/wAgu5/65muOXqamQDq7j4If8j1H/wBe8n8q4eu3+CTY8dxLnBa3kC/XFJAe+msrxRodp4i0l9MvZJo4WdXLRMA3H1BrU/woq2B57/wqLwz/AM/mrfhNH/8AEUf8Ki8Mf8/mr/8Af6P/AON16FRSA89/4VF4Y/5/NX/7/R//ABuj/hUXhj/n81f/AL/R/wDxuvQqKLAee/8ACovDH/P5q/8A3+j/APjdH/CovDH/AD+av/3+j/8AjdehUUWA89/4VF4Y/wCfzV/+/wBH/wDG6P8AhUXhj/n81f8A7/R//G69CoosB57/AMKi8Mf8/mr/APf6P/43SH4ReGP+fzV/+/sf/wAbr0OigDB8HeFtO8LW1xBp0tzItw6u/nsrEEDHGFFb1FBpgeN/tCf8hfSv+uMn81rzCvTv2hP+QxpX/XGT+a15jUvcDp/Dn/IMX/fatOszw5/yDF/32rTpgIRkU0nc24nJ65p9JTAWiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigCprH/ILuf+uZrjl6mux1j/kF3P8A1zNccvU1MgHVY0y/u9L1GG/sZjDcQtuRh/Kq9FID0BPi34kVQDb6e5xyTGef1p3/AAt3xJ/z6ad/37b/AOKrz2ii7A9C/wCFu+JP+fTTv+/bf/FUf8Ld8Sf8+mnf9+2/+Krz2ii4HoX/AAt3xJ/z6ad/37b/AOKo/wCFu+JP+fTTv+/bf/FV57RRcD0L/hbviT/n007/AL9t/wDFUf8AC3fEn/Ppp3/ftv8A4qvPaKLgehf8Ld8Sf8+mnf8Aftv/AIqj/hbviT/n007/AL9t/wDFV57RRcD0L/hbviP/AJ9NP/79t/8AFVe0X4oa9ezyJJa2ACrkYjb/AOKry/vWv4W/4+5f9wU0wPT/APhP9Y/597T/AL4P+NB8f6x/z72n/fB/xrk6KoCXX7ybXboz6ntmbaABtwFHoPSuZvtCIBezbP8AsOeR9DXQUUrAZ2gRyRWCxyIUYM2QRWlSUtMAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAKmrKW064UDJMZwK45O9d0wB6jPtVL+y7B2LG3XJ5ODipaA5Sius/snT/8An3H5mj+ydP8A+fcfmaVgOTorrP7J0/8A59x+Zo/snT/+fcfmaLAcnRXWf2Tp/wDz7j8zR/ZOn/8APuPzNFgOTorrP7J0/wD59x+Zo/snT/8An3H5miwHJ0V1n9k6f/z7j8zR/ZOn/wDPuPzNFgOTorrP7J0//n3H5mj+ydP/AOfcfmaLAcma1/CoP2qY7fl2DmtQ6Tp//PuB+NWLeCG3XZCioD6U0gJ6KKKoAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooASloooAKKKKACiiigAooooAKKKKACiiigAooooASilooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA//2Q==';
-
-    let latestTime = 0;
-    let latestImg = noPreview;
-    let latestRegion = cloudRegion;
-
-    let abortCtrl = new AbortController();
-    let timeoutId = setTimeout(() => abortCtrl.abort(), 3 * 1000);
-
-    try {
-        let imgUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`;
-        let res = await fetch(imgUrl, { signal: abortCtrl.signal });
-        latestImg = (await res.buffer()).toString('base64');
-
-        clearTimeout(timeoutId);
-
-        let dateHeader = res.headers.get('date');
-        latestTime = dateHeader ? Date.parse(dateHeader) : 0;
-    } catch (err) {
-        clearTimeout(timeoutId);
-        functions.logger.warn("Fail to get the latest image.", err);
-    }
-
-    // 가장 최근 또는 유효한 썸네일 얻기.
-    let results = await Promise.allSettled(jobs);
-    for (let res of results) {
-        if (res.status !== 'fulfilled' || !res.value) {
-            continue;
-        }
-
-        let data = res.value;
-        if ((data.time > latestTime || latestImg === noPreview) && data.img !== noPreview) {
-            latestTime = data.time;
-            latestImg = data.img;
-            latestRegion = data.region;
-        }
-    }
-
-    functions.logger.info("Getting latest preview success.", latestRegion, latestTime);
-
-    return Buffer.from(latestImg, 'base64');
+    return imgBuff;
 }
 
 async function streamJob() {
@@ -689,55 +642,3 @@ exports.checkTokens = functions.region(cloudRegion).pubsub.schedule('every monda
         await removeUnregisteredTokens(tokens);
     }
 });
-
-for (let region of subRegions) {
-    let suffix = region.replace('-', '');
-    suffix = suffix.substring(0, 1).toUpperCase() + suffix.substring(1);
-
-    exports[previewFuncName + suffix] = functions.region(region).https.onRequest(async (req, res) => {
-        // 뜻하지 않은 곳에서 요청이 올 경우 작업 방지.
-        if (req.query.key !== httpKey) {
-            functions.logger.info("Invalid query.", req.query);
-            res.status(403).end();
-            return;
-        }
-
-        // 인스턴스 유지를 위한 핑 기능.
-        if (req.query.ping) {
-            res.status(200).end()
-            return;
-        }
-
-        if (!req.query.name) {
-            functions.logger.info("Invalid query.", req.query);
-            res.status(403).end();
-            return;
-        }
-
-        const name = req.query.name;
-
-        let abortCtrl = new AbortController();
-        let timeoutId = setTimeout(() => abortCtrl.abort(), 3 * 1000);
-
-        try {
-            let imgUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${name}-640x360.jpg?tt=${Date.now()}`;
-            let imgRes = await fetch(imgUrl, { signal: abortCtrl.signal });
-            let img = await imgRes.buffer();
-
-            clearTimeout(timeoutId);
-
-            let dateHeader = imgRes.headers.get('date');
-            let time = dateHeader ? Date.parse(dateHeader) : 0;
-
-            res.status(200).send({
-                img: img.toString('base64'),
-                time: time,
-            });
-        } catch (err) {
-            functions.logger.warn("Fail to get an image.", err);
-            res.status(200).send({});
-        }
-
-        clearTimeout(timeoutId);
-    });
-}
