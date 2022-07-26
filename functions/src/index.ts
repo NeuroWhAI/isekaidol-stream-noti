@@ -220,14 +220,31 @@ async function getLatestPreview(member: MemberData): Promise<Buffer | null> {
     let imgBuff = null;
 
     try {
-        let size = `${640 + stage * 2}x${360 + stage}`;
-        let imgUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-${size}.jpg?tt=${Date.now()}`;
-        let res = await fetch(imgUrl, { signal: abortCtrl.signal });
-        imgBuff = await res.buffer();
+        let sizeList = [[1920, 1080], [1280, 720], [640, 360]];
+        for (let origSize of sizeList) {
+            let size = `${origSize[0] + stage * 2}x${origSize[1] + stage}`;
+            let imgUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-${size}.jpg?tt=${Date.now()}`;
+            let res = await fetch(imgUrl, { signal: abortCtrl.signal });
 
-        functions.logger.info("Getting latest preview success.", size);
+            // max-age 값이 일정 값 이상이면 썸네일이 없는 것으로 보고 다른 해상도의 썸네일 얻기 시도.
+            let cacheCtrl = res.headers.get('cache-control');
+            let maxCacheAge = cacheCtrl?.includes('max-age=') ? parseInt(cacheCtrl.split('=')[1]) : -1;
+            if (maxCacheAge > 400) {
+                functions.logger.info("Ignore a default preview.", size, maxCacheAge);
+                continue;
+            }
+
+            imgBuff = await res.buffer();
+
+            functions.logger.info("Getting a preview success.", size);
+            break;
+        }
+
+        if (imgBuff === null) {
+            functions.logger.error("Fail to get a preview image.");
+        }
     } catch (err) {
-        functions.logger.error("Fail to get the latest image.", err);
+        functions.logger.error("Fail to get a preview image.", err);
     }
 
     clearTimeout(timeoutId);
