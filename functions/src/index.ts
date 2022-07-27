@@ -205,10 +205,12 @@ async function getLatestPreview(member: MemberData): Promise<Buffer | null> {
     let stage = (await refStage.get()).val();
 
     let nextStage = 0;
-    if (stage > 0) {
+    if (stage === 1) {
+        nextStage = 2;
+    } else if (stage === 2) {
+        nextStage = -2;
+    } else if (stage === -2) {
         nextStage = -1;
-    } else if (stage < 0) {
-        nextStage = 0;
     } else {
         nextStage = 1;
     }
