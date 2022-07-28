@@ -409,13 +409,41 @@
     let currentWebhookMember = memberIds[0];
     let webhookState: 'ready' | 'loading' | 'complete' | 'error' = 'ready';
 
+    $: if (!helpDlgOpen && !webhookDlgOpen && window.location.hash !== '') {
+        window.history.back();
+    }
+
+    function openHelpDlg() {
+        helpDlgOpen = true;
+
+        window.location.hash = '/help';
+    }
+
     function openWebhookDlg(id: string) {
         currentWebhookMember = id;
         if (webhookState !== 'loading') {
             webhookState = 'ready';
         }
         webhookDlgOpen = true;
+
+        window.location.hash = '/hook-' + id;
     }
+
+    function handleHashRoute() {
+        let hash = window.location.hash;
+        if (hash === '#/help') {
+            openHelpDlg();
+        } else if (hash.startsWith('#/hook-')) {
+            let id = hash.split('-')[1];
+            if (id in members) {
+                openWebhookDlg(id);
+            }
+        } else {
+            helpDlgOpen = false;
+            webhookDlgOpen = false;
+        }
+    }
+    handleHashRoute();
 
     function registerWebhook(event: CustomEvent) {
         const memberId = event.detail.id;
@@ -438,7 +466,7 @@
             <Button round small class="help-btn" style="visibility: hidden;"><HelpCircleIcon size="20" /></Button>
             <Subhead class="big-scr">뱅온 및 방제, 카테고리 변경을 알려드려요.</Subhead>
             <Subhead class="small-scr">뱅온 및 방제, 카테고리 변경 알림.</Subhead>
-            <Button round small class="help-btn" on:click={() => helpDlgOpen = true}><HelpCircleIcon size="20" /></Button>
+            <Button round small class="help-btn" on:click={openHelpDlg}><HelpCircleIcon size="20" /></Button>
         </div>
     </div>
     {#each memberIds as id}
@@ -479,6 +507,8 @@
         {/each}
     </div>
 </main>
+
+<svelte:window on:hashchange={handleHashRoute} />
 
 <div class="modal-box">
     <Modal bind:open={helpDlgOpen} let:closeCallback>
