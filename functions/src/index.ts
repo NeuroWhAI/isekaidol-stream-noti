@@ -200,22 +200,7 @@ async function uploadImage(jpgBuff: Buffer, fileName: string): Promise<string | 
     return null;
 }
 
-async function getLatestPreview(member: MemberData): Promise<Buffer | null> {
-    let refStage = admin.database().ref('preview/' + member.id);
-    let stage = (await refStage.get()).val();
-
-    let nextStage = 0;
-    if (stage === 1) {
-        nextStage = 2;
-    } else if (stage === 2) {
-        nextStage = -2;
-    } else if (stage === -2) {
-        nextStage = -1;
-    } else {
-        nextStage = 1;
-    }
-    let stageJob = refStage.set(nextStage);
-
+async function getLatestPreview(member: MemberData, stage: number): Promise<Buffer | null> {
     let abortCtrl = new AbortController();
     let timeoutId = setTimeout(() => abortCtrl.abort(), 4 * 1000);
 
@@ -250,8 +235,6 @@ async function getLatestPreview(member: MemberData): Promise<Buffer | null> {
     }
 
     clearTimeout(timeoutId);
-
-    await stageJob;
 
     return imgBuff;
 }
@@ -445,22 +428,45 @@ async function streamJob() {
                 msg += '\n' + newData.category;
             }
 
+            // 최신 썸네일을 얻기 위한 오프셋 값 얻고 갱신.
+            //
+
+            let stage = 1;
+            if (newData.online) {
+                let refStage = admin.database().ref('preview/' + member.id);
+                stage = (await refStage.get()).val();
+
+                let nextStage = 0;
+                if (stage === 1) {
+                    nextStage = 2;
+                } else if (stage === 2) {
+                    nextStage = -2;
+                } else if (stage === -2) {
+                    nextStage = -1;
+                } else {
+                    nextStage = 1;
+                }
+
+                let stageJob = refStage.set(nextStage);
+                jobs.push(stageJob);
+            }
+
             // 텔레그램 전송.
             //
 
             let telgMsg = msg;
             if (newData.online) {
-                telgMsg += `\ntinyurl.com/${member.id}-twpre?t=${Date.now()}`;
+                telgMsg += `\ntinyurl.com/${member.id}-twpre${stage}?t=${Date.now()}`;
             }
 
-            let msgJob: Promise<any>= sendTelegram(bot, member.id, telgMsg)
+            let msgJob: Promise<any> = sendTelegram(bot, member.id, telgMsg)
                 .catch((err) => functions.logger.error("Fail to send telegram.", err));
             jobs.push(msgJob);
 
             // 썸네일 얻고 나머지 플랫폼에 전송.
             let imgJob: Promise<Buffer | null> = Promise.resolve(null);
             if (newData.online) {
-                imgJob = getLatestPreview(member)
+                imgJob = getLatestPreview(member, stage);
             }
             msgJob = imgJob.then((imgBuff) => {
                 let subJobs = [];
