@@ -2,6 +2,7 @@
     import * as Sentry from '@sentry/browser';
     import { Headline, Subhead, Button, Modal, Dialog } from 'attractions';
     import { HelpCircleIcon } from 'svelte-feather-icons';
+    import { Confetti } from 'svelte-confetti';
 
     import * as FireDb from "firebase/database";
     import * as FireMsg from "firebase/messaging";
@@ -457,16 +458,37 @@
             .then(() => webhookState = 'complete')
             .catch(() => webhookState = 'error');
     }
+
+    // 결성일 축하.
+    let formationCelebration = false;
+    let formationAnniversary = 0;
+    function updateFormation() {
+        let now = new Date();
+        formationCelebration = (now.getMonth() + 1 === 8 && now.getDate() === 26);
+        formationAnniversary = now.getFullYear() - 2021;
+    }
+    updateFormation();
+    setInterval(updateFormation, 5 * 60 * 1000);
 </script>
 
 <main>
     <div class="header">
-        <Headline>이세계 아이돌 방송 알림</Headline>
+        {#if formationCelebration}
+            <Headline>이세계 아이돌 결성 {formationAnniversary}주년</Headline>
+        {:else}
+            <Headline>이세계 아이돌 방송 알림</Headline>
+        {/if}
         <div class="subheader">
+            {#if formationCelebration}
+                <Confetti cone x={[-0.8, 0.4]} y={[0.25, 1]} delay={[0, 1000]} iterationCount=infinite />
+            {/if}
             <Button round small class="help-btn" style="visibility: hidden;"><HelpCircleIcon size="20" /></Button>
             <Subhead class="big-scr">뱅온 및 방제, 카테고리 변경을 알려드려요.</Subhead>
             <Subhead class="small-scr">뱅온 및 방제, 카테고리 변경 알림.</Subhead>
             <Button round small class="help-btn" on:click={openHelpDlg}><HelpCircleIcon size="20" /></Button>
+            {#if formationCelebration}
+                <Confetti cone x={[-0.4, 0.8]} y={[0.25, 1]} delay={[0, 1000]} iterationCount=infinite />
+            {/if}
         </div>
     </div>
     {#each memberIds as id}
