@@ -654,6 +654,11 @@
         display: flex;
         justify-content: center;
     }
+    .multi-stream > :global(a.btn) {
+        font-family: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+    }
 
     .channel-title {
         margin: 24px 0 0 0;
