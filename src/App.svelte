@@ -673,12 +673,12 @@
         align-items: baseline;
     }
     @media (max-width: 600px) {
-        .channel-title, .webhook-title {
+        .channel-title, .webhook-title, .multi-stream {
             font-size: 0.9em;
         }
     }
     @media (max-width: 520px) {
-        .channel-title, .webhook-title {
+        .channel-title, .webhook-title, .multi-stream {
             font-size: 0.8em;
         }
     }
