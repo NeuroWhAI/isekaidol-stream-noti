@@ -37,6 +37,53 @@
     }
     updateBirthday();
     setInterval(updateBirthday, 60 * 1000);
+
+    let titleObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'title') {
+                titleBox.scrollLeft = 0;
+                startScrollHint();
+            }
+        });
+    });
+    let titleBox: HTMLElement = null;
+    function observeTitleBox() {
+        if (titleBox) {
+            titleObserver.observe(titleBox, { attributes: true });
+        } else {
+            setTimeout(observeTitleBox, 100);
+        }
+    }
+    observeTitleBox();
+
+    function startScrollHint() {
+        if (!titleBox
+            || titleBox.scrollWidth < titleBox.clientWidth + 0.5 // 스크롤 불필요.
+            || window.getComputedStyle(titleBox).overflowX !== 'auto' // 스크롤바 없음.
+        ) {
+            return;
+        }
+
+        let targetScroll = Math.min(titleBox.scrollWidth - titleBox.clientWidth, 60);
+        titleBox.scrollLeft += Math.max((targetScroll - titleBox.scrollLeft) * 0.1, 1);
+        if (titleBox.scrollLeft > targetScroll - 1) {
+            endScrollHint();
+        } else {
+            setTimeout(startScrollHint, 16);
+        }
+    }
+    function endScrollHint() {
+        if (!titleBox) {
+            return;
+        }
+
+        titleBox.scrollLeft -= Math.max(titleBox.scrollLeft * 0.1, 1);
+        if (titleBox.scrollLeft < 1) {
+            titleBox.scrollLeft = 0;
+        } else {
+            setTimeout(endScrollHint, 16);
+        }
+    }
 </script>
 
 <div class="outer-box" style="--light-profile-color: {data.color + '16'}; --transparent-profile-color: {data.color + '00'}; --fan-img: {fanImgUrl}">
@@ -53,7 +100,7 @@
             </div>
             <div class="info-box" style="--new-title: {newTitle ? 'inline' : 'none'}; --new-category: {newCategory ? 'inline' : 'none'}">
                 <a href="https://www.twitch.tv/{data.twitchId}" class="twitch-link">
-                    <span class="content-text title" {title}>{title === '' ? "제목 없음" : title}</span>
+                    <span bind:this={titleBox} class="content-text title" {title}>{title === '' ? "제목 없음" : title}</span>
                 </a>
                 <span class="content-text category">{category}</span>
             </div>
@@ -187,6 +234,16 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+    @media only screen and (hover: none) {
+        .content-text {
+            overflow: auto hidden;
+            text-overflow: initial;
+            scrollbar-width: none;
+        }
+        .content-text::-webkit-scrollbar {
+            display: none;
+        }
     }
 
     .title::before {
