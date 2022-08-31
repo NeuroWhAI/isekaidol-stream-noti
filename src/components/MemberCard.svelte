@@ -235,7 +235,7 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    @media only screen and (hover: none) {
+    @media (pointer: coarse) {
         .content-text {
             overflow: auto hidden;
             text-overflow: initial;
