@@ -365,7 +365,7 @@ async function streamJob() {
                 data: {
                     id: member.id,
                     online: String(newData.online),
-                    title: (newData.online ? "🔴 " : "⚫ ") + newData.title,
+                    title: newData.title,
                     category: newData.category,
                     onlineChanged: String(onlineChanged),
                     titleChanged: String(titleChanged),
