@@ -365,7 +365,7 @@ async function streamJob() {
                 data: {
                     id: member.id,
                     online: String(newData.online),
-                    title: newData.title,
+                    title: (newData.online ? "🔴 " : "⚫ ") + newData.title,
                     category: newData.category,
                     onlineChanged: String(onlineChanged),
                     titleChanged: String(titleChanged),
@@ -454,7 +454,7 @@ async function streamJob() {
             // 텔레그램 전송.
             //
 
-            let telgMsg = msg;
+            let telgMsg = (newData.online ? "🔴 " : "⚫ ") + msg;
             if (newData.online) {
                 telgMsg += `\ntinyurl.com/${member.id}-twpre${stage}?t=${Date.now()}`;
             }
@@ -480,6 +480,7 @@ async function streamJob() {
                 now = new Date(utc + (3600000 * 9));
 
                 msg = member.name + " " + msg + "\n#이세돌 #이세계아이돌 #" + member.name + " " + now.toLocaleTimeString('ko-KR');
+                msg = (newData.online ? "🔴 " : "⚫ ") + msg;
 
                 let subJob = sendTweet(twitterClient!, msg, imgBuff)
                     .catch((err) => functions.logger.error("Fail to send tweet.", err));
@@ -497,7 +498,7 @@ async function streamJob() {
                         previewImg = await uploadImage(imgBuff, `${member.id}-${Date.now()}.jpg`) ?? defaultUrl;
                     }
 
-                    let msgTitle = titleInfo.join(", ") + " 알림";
+                    let msgTitle = (newData.online ? "🔴 " : "⚫ ") + titleInfo.join(", ") + " 알림";
                     let msgContent = newData.title + '\n' + newData.category;
 
                     let discordJobs = [];
