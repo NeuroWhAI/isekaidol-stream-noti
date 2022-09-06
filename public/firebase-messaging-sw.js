@@ -68,7 +68,6 @@ messaging.onBackgroundMessage((payload) => {
     data.titleChanged = JSON.parse(data.titleChanged);
     data.categoryChanged = JSON.parse(data.categoryChanged);
 
-    let notiTitle = members[data.id];
     let titleInfo = [];
     if (data.onlineChanged) {
         titleInfo.push(data.online ? "뱅온" : "뱅종");
@@ -79,7 +78,8 @@ messaging.onBackgroundMessage((payload) => {
     if (data.categoryChanged) {
         titleInfo.push("카테고리");
     }
-    notiTitle += " " + titleInfo.join(", ") + " 알림";
+    let notiTitle = (data.online ? "🔴 " : "⚫ ");
+    notiTitle += members[data.id] + " " + titleInfo.join(", ") + " 알림";
 
     const notiOptions = {
         body: data.title + "\n" + data.category,
