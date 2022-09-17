@@ -479,8 +479,13 @@ async function streamJob() {
                 let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
                 now = new Date(utc + (3600000 * 9));
 
-                msg = member.name + " " + msg + "\n#이세돌 #이세계아이돌 #" + member.name + " " + now.toLocaleTimeString('ko-KR');
-                msg = (newData.online ? "🔴 " : "⚫ ") + msg;
+                let tweetHead = (newData.online ? "🔴 " : "⚫ ") + member.name + ' ';
+                let tweetTail = "\n#이세돌 #이세계아이돌 #" + member.name + ' ' + now.toLocaleTimeString('ko-KR');
+                let tweetOverLen = tweetHead.length + tweetTail.length + msg.length - 140;
+                if (tweetOverLen > 0) {
+                    msg = msg.substring(0, Math.max(msg.length - tweetOverLen - 1, 0)) + '…';
+                }
+                msg = tweetHead + msg + tweetTail;
 
                 let subJob = sendTweet(twitterClient!, msg, imgBuff)
                     .catch((err) => functions.logger.error("Fail to send tweet.", err));
