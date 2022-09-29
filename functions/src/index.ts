@@ -288,23 +288,6 @@ async function streamJob() {
             jobs.push(dbJob);
         }
 
-        // 뱅온 알림이 울릴 조건일 때 이전 뱅종 시간 대비 충분한 시간이 지나지 않았으면 알림을 울리지 않도록 함.
-        const maxOffIgnoreTime = 90 * 1000;
-        if (onlineChanged && newData.online) {
-            try {
-                let refOffTime = admin.database().ref('offtime/' + member.id);
-                offTime = (await refOffTime.get()).val();
-            } catch (err) {
-                functions.logger.error("Fail to get offline time.", member.id, err);
-            }
-
-            let now = Date.now();
-            if (now - offTime < maxOffIgnoreTime) {
-                onlineChanged = false;
-                functions.logger.info("Online notification is ignored.")
-            }
-        }
-
         // 방제, 카테고리가 짧은 시간 안에 이전 것으로 원복되었다 다시 원래대로 돌아오는 경우 알림 방지.
         if (titleChanged || categoryChanged) {
             let refPrev = admin.database().ref('prev/' + member.id);
@@ -341,23 +324,29 @@ async function streamJob() {
             }
         }
 
-        // 카테고리 변경의 경우 방종 상태에선 알리지 않을건데
-        // 일시적 오류로 방종 인식된 경우 대응을 위해 마지막 방종 시간 얻어 확인.
-        if (categoryChanged && !newData.online && offTime <= 0) {
-            try {
-                let refOffTime = admin.database().ref('offtime/' + member.id);
-                offTime = (await refOffTime.get()).val();
-            } catch (err) {
-                functions.logger.error("Fail to get offline time.", member.id, err);
+        // 뱅온 알림이 울릴 조건일 때 이전 뱅종 시간 대비 충분한 시간이 지나지 않았으면 알림을 울리지 않도록 함.
+        // 또는 뱅종 상태인데 제목, 카테고리가 변경된 경우 뱅종 이후 일정 시간이 지나지 않았다면 뱅온 상태인 것으로 봄.
+        if((onlineChanged && newData.online) || (!newData.online && (titleChanged || categoryChanged))) {
+            if (offTime <= 0) {
+                try {
+                    let refOffTime = admin.database().ref('offtime/' + member.id);
+                    offTime = (await refOffTime.get()).val();
+                } catch (err) {
+                    functions.logger.error("Fail to get offline time.", member.id, err);
+                }
+            }
+
+            const maxOffIgnoreTime = 90 * 1000;
+            if (Date.now() - offTime < maxOffIgnoreTime) {
+                newData.online = true;
+                onlineChanged = false;
+                functions.logger.info("Keep stream status online.")
             }
         }
 
         // 알림 전송.
         // 단, 방종 및 방종 상태의 카테고리 변경은 알리지 않음.
-        if ((onlineChanged && newData.online)
-            || titleChanged
-            || (categoryChanged && (newData.online || (Date.now() - offTime < maxOffIgnoreTime)))
-        ) {
+        if ((onlineChanged && newData.online) || titleChanged || (categoryChanged && newData.online)) {
             // FCM 메시지 전송.
             //
 
