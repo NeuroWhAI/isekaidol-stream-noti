@@ -283,7 +283,7 @@ async function streamJob() {
         // 사이트 표시용 DB 갱신.
         if (onlineChanged || titleChanged || categoryChanged) {
             let dbJob = refStream.set(newData)
-                .then(() => functions.logger.info("Stream data updated."))
+                .then(() => functions.logger.info("Stream data updated.", newData))
                 .catch((err) => functions.logger.error("Fail to update the stream data.", err));
             jobs.push(dbJob);
         }
