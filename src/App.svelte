@@ -535,7 +535,7 @@
     <div class="channel-box">
         {#each memberIds as id}
             <Button round small href="https://t.me/{id}_stream_noti" target="_blank">
-                <img class="channel-img" alt="{id}" src="image/{id}.png" />
+                <img class="channel-img" alt="{id}" src="image/sm_{id}.png" />
             </Button>
         {/each}
     </div>
@@ -546,7 +546,7 @@
     <div class="webhook-box">
         {#each memberIds as id}
             <Button round small on:click={() => openWebhookDlg(id)}>
-                <img class="channel-img" alt="{id}" src="image/{id}.png" />
+                <img class="channel-img" alt="{id}" src="image/sm_{id}.png" />
             </Button>
         {/each}
     </div>
@@ -696,8 +696,8 @@
     }
     
     .channel-img {
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         background-color: white;
         border-radius: 50%;
         box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
