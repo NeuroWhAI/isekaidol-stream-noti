@@ -1,4 +1,4 @@
-const CACHE = 'cache-v21';
+const CACHE = 'cache-v22';
 
 // A list of local resources we always want to be cached.
 const PRECACHE_URLS = [
@@ -21,6 +21,12 @@ const PRECACHE_URLS = [
     'image/fan_jururu.png',
     'image/fan_lilpa.png',
     'image/fan_viichan.png',
+    'image/sm_gosegu.png',
+    'image/sm_ine.png',
+    'image/sm_jingburger.png',
+    'image/sm_jururu.png',
+    'image/sm_lilpa.png',
+    'image/sm_viichan.png',
     'image/cone.png',
 ];
 
