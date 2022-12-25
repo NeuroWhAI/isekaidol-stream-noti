@@ -54,11 +54,11 @@ interface MemberData {
     color: HexColorString,
 }
 const members: MemberData[] = [
-    { id: 'jururu', name: '주르르', twitchId: '203667951', twitchName: 'cotton__123', color: '#800080' },
+    { id: 'jururu', name: '주르르', twitchId: '203667951', twitchName: 'cotton__123', color: '#ffacac' },
     { id: 'jingburger', name: '징버거', twitchId: '237570548', twitchName: 'jingburger', color: '#f0a957' },
     { id: 'viichan', name: '비챤', twitchId: '195641865', twitchName: 'viichan6', color: '#85ac20' },
     { id: 'gosegu', name: '고세구', twitchId: '707328484', twitchName: 'gosegugosegu', color: '#467ec6' },
-    { id: 'lilpa', name: '릴파', twitchId: '169700336', twitchName: 'lilpaaaaaa', color: '#000080' },
+    { id: 'lilpa', name: '릴파', twitchId: '169700336', twitchName: 'lilpaaaaaa', color: '#3e52d9' },
     { id: 'ine', name: '아이네', twitchId: '702754423', twitchName: 'vo_ine', color: '#8a2be2' },
 ];
 
