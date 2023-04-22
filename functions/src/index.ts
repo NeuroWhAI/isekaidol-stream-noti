@@ -200,13 +200,6 @@ async function uploadImage(jpgBuff: Buffer, fileName: string): Promise<string | 
     return null;
 }
 
-function getAdjustedImgSize(baseWidth: number, baseHeight: number, stage: number): string {
-    const scale = 0.99 + Math.random() * 0.005;
-    let w = Math.round(baseWidth * scale + stage * 2);
-    let h = Math.round(baseHeight * scale + stage);
-    return `${w}x${h}`;
-}
-
 async function getLatestPreview(member: MemberData, stage: number): Promise<Buffer | null> {
     let abortCtrl = new AbortController();
     let timeoutId = setTimeout(() => abortCtrl.abort(), 4 * 1000);
@@ -216,7 +209,7 @@ async function getLatestPreview(member: MemberData, stage: number): Promise<Buff
     try {
         let sizeList = [[1920, 1080], [1280, 720], [640, 360]];
         for (let origSize of sizeList) {
-            let size = getAdjustedImgSize(origSize[0], origSize[1], stage);
+            let size = `${origSize[0] + stage * 2}x${origSize[1] + stage}`;
             let imgUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-${size}.jpg?tt=${Date.now()}`;
             let res = await fetch(imgUrl, { signal: abortCtrl.signal });
 
@@ -452,8 +445,7 @@ async function streamJob() {
 
             let telgMsg = (newData.online ? "🔴 " : "⚫ ") + msg;
             if (newData.online) {
-                let size = getAdjustedImgSize(1920, 1080, stage);
-                telgMsg += `\nstatic-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-${size}.jpg?tt=${Date.now()}`;
+                telgMsg += `\ntinyurl.com/${member.id}-twpre${stage}?t=${Date.now()}`;
             }
 
             let msgJob: Promise<any> = sendTelegram(bot, member.id, telgMsg)
@@ -496,8 +488,7 @@ async function streamJob() {
                 subJob = refDiscord.get().then(async (snapshot) => {
                     let previewImg = '';
                     if (newData.online && imgBuff) {
-                        let size = getAdjustedImgSize(640, 360, stage);
-                        let defaultUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-${size}.jpg?tt=${Date.now()}`;
+                        let defaultUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`;
                         previewImg = await uploadImage(imgBuff, `${member.id}-${Date.now()}.jpg`) ?? defaultUrl;
                     }
 
