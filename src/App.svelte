@@ -490,9 +490,9 @@
 <main>
     <div class="header">
         {#if celebration}
-            <Headline>이세계 아이돌 {celebration} {anniversary}주년</Headline>
+            <Headline>이세계아이돌 {celebration} {anniversary}주년</Headline>
         {:else}
-            <Headline>이세계 아이돌 방송 알림</Headline>
+            <Headline>이세계아이돌 방송 알림</Headline>
         {/if}
         <div class="subheader">
             {#if celebration}

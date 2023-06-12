@@ -1,6 +1,6 @@
 {
     "short_name": "이세돌 알림",
-    "name": "이세계 아이돌 방송 알림",
+    "name": "이세계아이돌 방송 알림",
     "icons": [
         {
             "src": "favicon.png",
@@ -17,5 +17,5 @@
     "display": "standalone",
     "theme_color": "#e7416f",
     "background_color": "#ffffff",
-    "description": "이세계 아이돌 뱅온 및 방제, 카테고리 변경 알림."
+    "description": "이세계아이돌 뱅온 및 방제, 카테고리 변경 알림."
 }
