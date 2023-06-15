@@ -142,9 +142,9 @@ async function sendTweet(client: TwitterApi, msg: string, jpgImg: Buffer | null)
     }
 
     if (imageId && imageId !== '') {
-        await client.v1.tweet(msg, { media_ids: imageId });
+        await client.v2.tweet({ text: msg, media: { media_ids: [imageId] } });
     } else {
-        await client.v1.tweet(msg);
+        await client.v2.tweet({ text: msg });
     }
 }
 
