@@ -1,4 +1,4 @@
-const CACHE = 'cache-v27';
+const CACHE = 'cache-v28';
 
 // A list of local resources we always want to be cached.
 const PRECACHE_URLS = [
