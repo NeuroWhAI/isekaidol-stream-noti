@@ -93,7 +93,7 @@ async function removeUnregisteredTokens(tokens: string[]) {
 
     try {
         // 실제로 메시지 보내진 않고 토큰 검증만 함.
-        let response = await admin.messaging().sendMulticast(msg, true);
+        let response = await admin.messaging().sendEachForMulticast(msg, true);
         if (response.failureCount <= 0) {
             return;
         }
