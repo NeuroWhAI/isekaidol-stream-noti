@@ -52,12 +52,13 @@ interface MemberData {
     twitchId: string,
     twitchName: string,
     color: HexColorString,
+    twitterId?: string,
 }
 const members: MemberData[] = [
-    { id: 'jururu', name: '주르르', twitchId: '203667951', twitchName: 'cotton__123', color: '#ffacac' },
-    { id: 'jingburger', name: '징버거', twitchId: '237570548', twitchName: 'jingburger', color: '#f0a957' },
-    { id: 'viichan', name: '비챤', twitchId: '195641865', twitchName: 'viichan6', color: '#85ac20' },
-    { id: 'gosegu', name: '고세구', twitchId: '707328484', twitchName: 'gosegugosegu', color: '#467ec6' },
+    { id: 'jururu', name: '주르르', twitchId: '203667951', twitchName: 'cotton__123', color: '#ffacac', twitterId: '1341013061981806592' },
+    { id: 'jingburger', name: '징버거', twitchId: '237570548', twitchName: 'jingburger', color: '#f0a957', twitterId: '886087131914944513' },
+    { id: 'viichan', name: '비챤', twitchId: '195641865', twitchName: 'viichan6', color: '#85ac20', twitterId: '1000725569892306945' },
+    { id: 'gosegu', name: '고세구', twitchId: '707328484', twitchName: 'gosegugosegu', color: '#467ec6', twitterId: '1681727526706765825' },
     { id: 'lilpa', name: '릴파', twitchId: '169700336', twitchName: 'lilpaaaaaa', color: '#3e52d9' },
     { id: 'ine', name: '아이네', twitchId: '702754423', twitchName: 'vo_ine', color: '#8a2be2' },
 ];
@@ -148,13 +149,13 @@ async function sendTweet(client: TwitterApi, msg: string, jpgImg: Buffer | null)
     }
 }
 
-async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string, msgContent: string, msgImg: string, timestamp: Date): Promise<void> {
+async function sendDiscord(urlKey: string, member: MemberData, msgUrl: string, msgTitle: string, msgContent: string, msgImg: string, timestamp: Date): Promise<void> {
     let webhookClient = new WebhookClient({ url: 'https://discord.com/api/webhooks/' + urlKey });
 
     let embed = new MessageEmbed()
         .setTitle(msgTitle)
         .setColor(member.color)
-        .setURL('https://www.twitch.tv/' + member.twitchName)
+        .setURL(msgUrl)
         .setDescription(msgContent)
         .setTimestamp(timestamp);
     
@@ -494,11 +495,12 @@ async function streamJob() {
 
                     let msgTitle = (newData.online ? "🔴 " : "⚫ ") + titleInfo.join(", ") + " 알림";
                     let msgContent = newData.title + '\n' + newData.category;
+                    let msgUrl = 'https://www.twitch.tv/' + member.twitchName;
 
                     let discordJobs = [];
                     for (let key in snapshot.val()) {
                         let urlKey = key.replace('|', '/');
-                        let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                        let discoJob = sendDiscord(urlKey, member, msgUrl, msgTitle, msgContent, previewImg, now)
                             .catch((err) => {
                                 // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
                                 if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
@@ -511,7 +513,7 @@ async function streamJob() {
                                 } else {
                                     functions.logger.info("Fail to send discord and will retry.", key, err);
 
-                                    return sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                                    return sendDiscord(urlKey, member, msgUrl, msgTitle, msgContent, previewImg, now)
                                         .catch((err) => functions.logger.error("Fail to send discord.", key, err));
                                 }
                             });
@@ -535,6 +537,209 @@ async function streamJob() {
     await Promise.allSettled(jobs);
 }
 
+async function spaceJob() {
+    if (apiClient === null || bot === null || twitterClient === null) {
+        functions.logger.warn("Twitch or Telegram or Twitter are not prepared!");
+        return;
+    }
+
+    const twitterIds = members.filter((m) => m.twitterId).map((m) => m.twitterId!);
+    if (twitterIds.length === 0) {
+        return;
+    }
+
+    const res = await twitterClient.v2.spacesByCreators(twitterIds, {
+        "space.fields": ['id', 'title', 'state', 'creator_id'],
+    });
+
+    if (res.errors && res.errors.length > 0) {
+        functions.logger.error("Fail to get spaces.", res.errors);
+        return;
+    }
+
+    let jobs: Promise<any>[] = [];
+    let prevFcmJob: Promise<void> | null = null;
+
+    for (const space of res.data) {
+        if (!space.creator_id) {
+            functions.logger.error("Fail to get creator.", space.creator_id);
+            continue;
+        }
+
+        let newData = {
+            online: space.state === 'live',
+            title: space.title ?? '',
+            category: 'Twitter Space',
+        };
+
+        const member = members.find((m) => m.twitterId === space.creator_id);
+        if (!member) {
+            functions.logger.error("Fail to find member.", space.creator_id);
+            continue;
+        }
+
+        let refStream = admin.database().ref('space/' + member.id);
+        let dbData = (await refStream.get()).val();
+
+        let onlineChanged = (dbData.online !== newData.online);
+        let titleChanged = (dbData.title !== newData.title);
+
+        // 사이트 표시용 DB 갱신.
+        if (onlineChanged || titleChanged) {
+            let dbJob = refStream.set(newData)
+                .then(() => functions.logger.info("Space data updated.", newData))
+                .catch((err) => functions.logger.error("Fail to update the space data.", err));
+            jobs.push(dbJob);
+        }
+
+        // 알림 전송.
+        // 단, 방종은 알리지 않음.
+        if ((onlineChanged && newData.online) || titleChanged) {
+            // FCM 메시지 전송.
+            //
+
+            let message = {
+                data: {
+                    id: member.id,
+                    spaceId: space.id,
+                    online: String(newData.online),
+                    title: newData.title,
+                    category: newData.category,
+                    onlineChanged: String(onlineChanged),
+                    titleChanged: String(titleChanged),
+                    categoryChanged: String(onlineChanged), // 하위 호환을 위해 스페이스 뱅온시 카테고리로 스페이스라는 걸 알림.
+                },
+                topic: member.id,
+                webpush: {
+                    headers: {
+                        "TTL": "1200",
+                        "Urgency": "high",
+                    }
+                }
+            };
+
+            // FCM 전송은 동시 실행되면 오류날 가능성이 높다고 함.
+            if (prevFcmJob !== null) {
+                await prevFcmJob;
+            }
+
+            prevFcmJob = admin.messaging().send(message)
+                .then((res) => functions.logger.info("Messaging success.", message, res))
+                .catch(async (err) => {
+                    functions.logger.info("Messaging fail and will retry.", message, err);
+                    const maxRetry = 2;
+                    for (let retry = 1; retry <= maxRetry; retry++) {
+                        try {
+                            await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retry) + Math.random() * 500));
+                            const res = await admin.messaging().send(message);
+                            functions.logger.info("Messaging success.", message, res);
+                            break;
+                        } catch (err) {
+                            if (retry >= maxRetry) {
+                                functions.logger.warn("Messaging maybe fail.", message, err);
+                            } else {
+                                functions.logger.info("Messaging fail again and will retry.", message, err);
+                            }
+                        }
+                    }
+                });
+
+            // 메시지 조합.
+            //
+
+            let titleInfo: string[] = [];
+            if (onlineChanged) {
+                titleInfo.push(newData.online ? "뱅온" : "뱅종");
+            }
+            if (titleChanged) {
+                titleInfo.push("방제");
+            }
+
+            let msg = titleInfo.join(", ") + " 알림";
+            if (titleChanged) {
+                msg += '\n' + newData.title;
+            }
+
+            // 텔레그램 전송.
+            //
+
+            let telgMsg = (newData.online ? "🔵 " : "⚫ ") + "스페이스 " + msg;
+            if (newData.online) {
+                telgMsg += `\ntwitter.com/i/spaces/${space.id}`;
+            }
+
+            let msgJob: Promise<any> = sendTelegram(bot, member.id, telgMsg)
+                .catch((err) => functions.logger.error("Fail to send telegram.", err));
+            jobs.push(msgJob);
+
+            // 트윗 전송.
+            //
+
+            // 중복 트윗 방지를 위해 시간 포함.
+            let now = new Date();
+            let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            now = new Date(utc + (3600000 * 9));
+
+            let tweetHead = (newData.online ? "🔵 " : "⚫ ") + member.name + " 스페이스 ";
+            let tweetTail = `\ntwitter.com/i/spaces/${space.id}` + "\n#이세돌 #이세계아이돌 #" + member.name + ' ' + now.toLocaleTimeString('ko-KR');
+            let tweetOverLen = tweetHead.length + tweetTail.length + msg.length - 140;
+            if (tweetOverLen > 0) {
+                msg = msg.substring(0, Math.max(msg.length - tweetOverLen - 1, 0)) + '…';
+            }
+            msg = tweetHead + msg + tweetTail;
+
+            msgJob = sendTweet(twitterClient!, msg, null)
+                .catch((err) => functions.logger.error("Fail to send tweet.", err));
+            jobs.push(msgJob);
+
+            // 디스코드 웹훅 실행.
+            //
+
+            now = new Date();
+            let refDiscord = admin.database().ref('discord/' + member.id);
+            msgJob = refDiscord.get().then(async (snapshot) => {
+                let previewImg = '';
+
+                let msgTitle = (newData.online ? "🔵 " : "⚫ ") + "스페이스 " + titleInfo.join(", ") + " 알림";
+                let msgContent = newData.title + '\n' + newData.category;
+                let msgUrl = 'https://twitter.com/i/spaces/' + space.id;
+
+                let discordJobs = [];
+                for (let key in snapshot.val()) {
+                    let urlKey = key.replace('|', '/');
+                    let discoJob = sendDiscord(urlKey, member, msgUrl, msgTitle, msgContent, previewImg, now)
+                        .catch((err) => {
+                            // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
+                            if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
+                                || err.code === Constants.APIErrors.INVALID_WEBHOOK_TOKEN
+                            ) {
+                                let refHook = admin.database().ref('discord/' + member.id + '/' + key);
+                                return refHook.remove()
+                                    .then(() => functions.logger.info("Remove an invalid webhook.", key))
+                                    .catch((err) => functions.logger.error("Fail to remove an invalid webhook.", key, err));
+                            } else {
+                                functions.logger.info("Fail to send discord and will retry.", key, err);
+
+                                return sendDiscord(urlKey, member, msgUrl, msgTitle, msgContent, previewImg, now)
+                                    .catch((err) => functions.logger.error("Fail to send discord.", key, err));
+                            }
+                        });
+                    discordJobs.push(discoJob);
+                }
+
+                await Promise.allSettled(discordJobs);
+            });
+            jobs.push(msgJob);
+        }
+    }
+
+    if (prevFcmJob !== null) {
+        await prevFcmJob;
+    }
+
+    await Promise.allSettled(jobs);
+}
+
 exports.watchStreams = functions.region(cloudRegion).pubsub.schedule('every 1 minutes').onRun(async (context) => {
     let refTime = admin.database().ref('lasttime');
     let time = (await refTime.get()).val();
@@ -546,6 +751,7 @@ exports.watchStreams = functions.region(cloudRegion).pubsub.schedule('every 1 mi
     }
 
     await streamJob();
+    await spaceJob();
 
     await refTime.set(Date.now());
 
@@ -561,6 +767,7 @@ exports.updateStreams = functions.region(cloudRegion).https.onRequest(async (req
     }
 
     await streamJob();
+    await spaceJob();
 
     let now = Date.now();
     let refTime = admin.database().ref('lasttime');
@@ -624,7 +831,8 @@ exports.checkWebhook = functions.region(cloudRegion).database.ref('/discord/{mem
     let msgContent = "정상적으로 등록되었습니다.";
 
     try {
-        await sendDiscord(webhookKey.replace('|', '/'), member, msgTitle, msgContent, '', new Date());
+        let msgUrl = 'https://www.twitch.tv/' + member.twitchName;
+        await sendDiscord(webhookKey.replace('|', '/'), member, msgUrl, msgTitle, msgContent, '', new Date());
         functions.logger.info("Webhook checked.", memberId, webhookKey);
     } catch (err: any) {
         // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
