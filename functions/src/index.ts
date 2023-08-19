@@ -24,6 +24,9 @@ const twitterAppSecret = process.env.TWITTER_APP_SECRET;
 const twitterAccessToken = process.env.TWITTER_ACCESS_TOKEN;
 const twitterAccessSecret = process.env.TWITTER_ACCESS_SECRET;
 
+// Store the last sent message for each member
+let lastSentMessages: { [id: string]: { message: string, time: number } } = {};
+
 let authProvider: ClientCredentialsAuthProvider | null = null;
 let apiClient: ApiClient | null = null;
 if (clientId && clientSecret) {
@@ -162,11 +165,23 @@ async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string,
         embed = embed.setImage(msgImg);
     }
 
+    // Check if the last sent message for the member is the same as the current message and if it was sent less than a certain amount of time ago
+    let lastMessageInfo = lastSentMessages[member.id];
+    if (lastMessageInfo && lastMessageInfo.message === msgContent && Date.now() - lastMessageInfo.time < 60000) {
+        functions.logger.info("Skip sending duplicate message for member", member.id);
+        return;
+    }
+    
     await webhookClient.send({
         username: member.name + ' 방송',
         avatarURL: `https://isekaidol-stream-noti.web.app/image/${member.id}.png`,
         embeds: [embed],
     });
+    
+    // Update the lastSentMessages variable with the current message and the current time
+    lastSentMessages[member.id] = { message: msgContent, time: Date.now() };
+    
+    functions.logger.info("Message sent for member", member.id);
 }
 
 async function uploadImage(jpgBuff: Buffer, fileName: string): Promise<string | null> {
