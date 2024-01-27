@@ -51,15 +51,16 @@ interface MemberData {
     name: string,
     twitchId: string,
     twitchName: string,
+    afreecaId: string,
     color: HexColorString,
 }
 const members: MemberData[] = [
-    { id: 'jururu', name: '주르르', twitchId: '203667951', twitchName: 'cotton__123', color: '#ffacac' },
-    { id: 'jingburger', name: '징버거', twitchId: '237570548', twitchName: 'jingburger', color: '#f0a957' },
-    { id: 'viichan', name: '비챤', twitchId: '195641865', twitchName: 'viichan6', color: '#85ac20' },
-    { id: 'gosegu', name: '고세구', twitchId: '707328484', twitchName: 'gosegugosegu', color: '#467ec6' },
-    { id: 'lilpa', name: '릴파', twitchId: '169700336', twitchName: 'lilpaaaaaa', color: '#3e52d9' },
-    { id: 'ine', name: '아이네', twitchId: '702754423', twitchName: 'vo_ine', color: '#8a2be2' },
+    { id: 'jururu', name: '주르르', twitchId: '203667951', twitchName: 'cotton__123', afreecaId: 'cotton1217', color: '#ffacac' },
+    { id: 'jingburger', name: '징버거', twitchId: '237570548', twitchName: 'jingburger', afreecaId: 'jingburger1', color: '#f0a957' },
+    { id: 'viichan', name: '비챤', twitchId: '195641865', twitchName: 'viichan6', afreecaId: 'viichan6', color: '#85ac20' },
+    { id: 'gosegu', name: '고세구', twitchId: '707328484', twitchName: 'gosegugosegu', afreecaId: 'gosegu2', color: '#467ec6' },
+    { id: 'lilpa', name: '릴파', twitchId: '169700336', twitchName: 'lilpaaaaaa', afreecaId: 'lilpa0309', color: '#3e52d9' },
+    { id: 'ine', name: '아이네', twitchId: '702754423', twitchName: 'vo_ine', afreecaId: 'inehine', color: '#8a2be2' },
 ];
 
 function encodeFcmToken(token: string): string {
@@ -239,6 +240,28 @@ async function getLatestPreview(member: MemberData, stage: number): Promise<Buff
     return imgBuff;
 }
 
+async function getAfreecaPreview(broadNo: string): Promise<Buffer | null> {
+    let abortCtrl = new AbortController();
+    let timeoutId = setTimeout(() => abortCtrl.abort(), 4 * 1000);
+
+    let imgBuff = null;
+
+    try {
+        let imgUrl = `https://liveimg.afreecatv.com/${broadNo}?tt=${Date.now()}`;
+        let res = await fetch(imgUrl, { signal: abortCtrl.signal });
+        imgBuff = await res.buffer();
+
+        functions.logger.info("Getting a preview success.");
+    } catch (err) {
+        functions.logger.error("Fail to get a preview image.", err);
+    }
+
+    clearTimeout(timeoutId);
+
+    return imgBuff;
+}
+
+// TODO: 트위치 제거.
 async function streamJob() {
     if (apiClient === null || bot === null || twitterClient === null) {
         functions.logger.warn("Twitch or Telegram or Twitter are not prepared!");
@@ -352,6 +375,7 @@ async function streamJob() {
 
             let message = {
                 data: {
+                    type: 'twitch',
                     id: member.id,
                     online: String(newData.online),
                     title: newData.title,
@@ -535,6 +559,314 @@ async function streamJob() {
     await Promise.allSettled(jobs);
 }
 
+let broadCategoryCache: string;
+
+async function getAfreecaCategoryName(categoryNo: string): Promise<string> {
+    let data = broadCategoryCache;
+    if (!data) {
+        const res = await fetch('https://live.afreecatv.com/script/locale/ko_KR/broad_category.js');
+        data = await res.text();
+    }
+    
+    let endIdx = data.indexOf(`"${categoryNo}"`);
+    if (endIdx < 0) {
+        return '';
+    }
+    const startWord = `"cate_name"`;
+    let startIdx = data.lastIndexOf(startWord, endIdx);
+    if (startIdx < 0) {
+        return '';
+    }
+
+    startIdx = data.indexOf('"', startIdx + startWord.length);
+    if (startIdx < 0) {
+        return '';
+    }
+
+    endIdx = data.indexOf('"', startIdx + 1);
+    if (endIdx < 0) {
+        return '';
+    }
+
+    const name = data.substring(startIdx + 1, endIdx);
+    // 이름이 너무 길면 비정상 상태로 판단.
+    if (name.length > 50) {
+        return '';
+    }
+    return name;
+}
+
+type AfreecaLiveOn = { online: true, title: string, category: string, broadNo: string };
+type AfreecaLiveOff = { online: false };
+
+async function fetchAfreecaLive(afreecaId: string): Promise<AfreecaLiveOn | AfreecaLiveOff> {
+    const res = await fetch('https://live.afreecatv.com/afreeca/player_live_api.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'bid=' + afreecaId,
+    });
+    const data = await res.json();
+    const chan = data.CHANNEL;
+    if (!chan) {
+        throw new Error('No channel for ' + afreecaId);
+    }
+
+    let category = '';
+    if (chan.CATE) {
+        try {
+            category = await getAfreecaCategoryName(chan.CATE);
+        } catch (err) {
+            functions.logger.error("Fail to get category name.", chan.CATE, err);
+        }
+    }
+
+    if (chan.RESULT === 1) {
+        return {
+            online: true,
+            title: chan.TITLE ?? '',
+            category: category,
+            broadNo: chan.BNO ?? '',
+        };
+    }
+
+    return { online: false };
+}
+
+async function afreecaJob() {
+    if (bot === null || twitterClient === null) {
+        functions.logger.warn("Telegram or Twitter are not prepared!");
+        return;
+    }
+
+    // TODO: 테스트용 멤버이며 추후 삭제하여 전역 members 참조.
+    const members: MemberData[] = [
+        { id: 'roent', name: '뢴트게늄', twitchId: '', twitchName: '', afreecaId: 'jey422', color: '#ff69b4' },
+        { id: 'mawang', name: '마왕', twitchId: '', twitchName: '', afreecaId: 'mawang0216', color: '#2eccfa' },
+    ];
+
+    let jobs: Promise<any>[] = [];
+    let prevFcmJob: Promise<void> | null = null;
+
+    for (const member of members) {
+        const live = await fetchAfreecaLive(member.afreecaId);
+        let newData = {
+            online: live.online,
+            title: live.online ? live.title : '',
+            category: live.online ? live.category : '',
+        };
+
+        let refStream = admin.database().ref('afreeca/' + member.id);
+        let dbData = (await refStream.get()).val();
+
+        if (!dbData) {
+            let dbJob = refStream.set(newData)
+                .then(() => functions.logger.info("Stream data updated.", newData))
+                .catch((err) => functions.logger.error("Fail to update the stream data.", err));
+            jobs.push(dbJob);
+            continue;
+        }
+
+        if (!newData.online) {
+            newData.title = dbData.title ?? '';
+            newData.category = dbData.category ?? '';
+        }
+
+        let onlineChanged = (dbData.online !== newData.online);
+        let titleChanged = (newData.online && dbData.title !== newData.title);
+        let categoryChanged = (newData.online && dbData.category !== newData.category);
+
+        // 뱅종일 경우 뱅종 시간 저장.
+        let offTime = 0;
+        if (onlineChanged && !newData.online) {
+            try {
+                let refOffTime = admin.database().ref('offtime/' + member.id);
+                offTime = Date.now();
+                await refOffTime.set(offTime);
+            } catch (err) {
+                functions.logger.error("Fail to set offline time.", member.id, err);
+            }
+        }
+
+        // 사이트 표시용 DB 갱신.
+        if (onlineChanged || titleChanged || categoryChanged) {
+            let dbJob = refStream.set(newData)
+                .then(() => functions.logger.info("Stream data updated.", newData))
+                .catch((err) => functions.logger.error("Fail to update the stream data.", err));
+            jobs.push(dbJob);
+        }
+
+        // 알림 전송.
+        // 단, 방종 상태에선 전부 알리지 않음.
+        if (newData.online && (onlineChanged || titleChanged || categoryChanged)) {
+            // FCM 메시지 전송.
+            //
+
+            // TODO: 주석 삭제.
+            // let message = {
+            //     data: {
+            //         type: 'afreeca',
+            //         id: member.id,
+            //         online: String(newData.online),
+            //         title: newData.title,
+            //         category: newData.category,
+            //         onlineChanged: String(onlineChanged),
+            //         titleChanged: String(titleChanged),
+            //         categoryChanged: String(categoryChanged),
+            //     },
+            //     topic: member.id,
+            //     webpush: {
+            //         headers: {
+            //             "TTL": "1200",
+            //             "Urgency": "high",
+            //         }
+            //     }
+            // };
+
+            // FCM 전송은 동시 실행되면 오류날 가능성이 높다고 함.
+            if (prevFcmJob !== null) {
+                await prevFcmJob;
+            }
+
+            // TODO: 주석 제거하여 FCM 전송.
+            // prevFcmJob = admin.messaging().send(message)
+            //     .then((res) => functions.logger.info("Messaging success.", message, res))
+            //     .catch(async (err) => {
+            //         functions.logger.info("Messaging fail and will retry.", message, err);
+            //         const maxRetry = 2;
+            //         for (let retry = 1; retry <= maxRetry; retry++) {
+            //             try {
+            //                 await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retry) + Math.random() * 500));
+            //                 const res = await admin.messaging().send(message);
+            //                 functions.logger.info("Messaging success.", message, res);
+            //                 break;
+            //             } catch (err) {
+            //                 if (retry >= maxRetry) {
+            //                     functions.logger.warn("Messaging maybe fail.", message, err);
+            //                 } else {
+            //                     functions.logger.info("Messaging fail again and will retry.", message, err);
+            //                 }
+            //             }
+            //         }
+            //     });
+
+            // 메시지 조합.
+            //
+
+            let titleInfo: string[] = [];
+            if (onlineChanged) {
+                titleInfo.push(newData.online ? "뱅온" : "뱅종");
+            }
+            if (titleChanged) {
+                titleInfo.push("방제");
+            }
+            if (categoryChanged) {
+                titleInfo.push("카테고리");
+            }
+
+            let msg = titleInfo.join(", ") + " 알림";
+            if (titleChanged) {
+                msg += '\n' + newData.title;
+            }
+            if (categoryChanged) {
+                msg += '\n' + newData.category;
+            }
+
+            // 텔레그램 전송.
+            //
+
+            let telgMsg = (newData.online ? "🔴 " : "⚫ ") + msg;
+            if (live.online) {
+                telgMsg += `\nhttps://liveimg.afreecatv.com/${live.broadNo}?t=${Date.now()}`;
+            }
+
+            let msgJob: Promise<any> = sendTelegram(bot, member.id, telgMsg)
+                .catch((err) => functions.logger.error("Fail to send telegram.", err));
+            jobs.push(msgJob);
+
+            // 썸네일 얻고 나머지 플랫폼에 전송.
+            let imgJob: Promise<Buffer | null> = Promise.resolve(null);
+            if (live.online) {
+                imgJob = getAfreecaPreview(live.broadNo);
+            }
+            msgJob = imgJob.then((imgBuff) => {
+                let subJobs = [];
+
+                // 트윗 전송.
+                //
+
+                // 중복 트윗 방지를 위해 시간 포함.
+                let now = new Date();
+                let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                now = new Date(utc + (3600000 * 9));
+
+                let tweetHead = (newData.online ? "🔴 " : "⚫ ") + member.name + ' ';
+                let tweetTail = "\n#이세돌 #이세계아이돌 #" + member.name + ' ' + now.toLocaleTimeString('ko-KR');
+                let tweetOverLen = tweetHead.length + tweetTail.length + msg.length - 140;
+                if (tweetOverLen > 0) {
+                    msg = msg.substring(0, Math.max(msg.length - tweetOverLen - 1, 0)) + '…';
+                }
+                msg = tweetHead + msg + tweetTail;
+
+                // TODO: 주석 제거하여 트윗 전송되도록 함.
+                let subJob/* = sendTweet(twitterClient!, msg, imgBuff)
+                    .catch((err) => functions.logger.error("Fail to send tweet.", err));
+                subJobs.push(subJob);*/
+
+                // 디스코드 웹훅 실행.
+                //
+
+                now = new Date();
+                let refDiscord = admin.database().ref('discord/' + member.id);
+                subJob = refDiscord.get().then(async (snapshot) => {
+                    let previewImg = '';
+                    if (live.online && imgBuff) {
+                        let defaultUrl = `https://liveimg.afreecatv.com/${live.broadNo}?t=${Date.now()}`;
+                        previewImg = await uploadImage(imgBuff, `${member.id}-${Date.now()}.jpg`) ?? defaultUrl;
+                    }
+
+                    let msgTitle = (newData.online ? "🔴 " : "⚫ ") + titleInfo.join(", ") + " 알림";
+                    let msgContent = newData.title + '\n' + newData.category;
+
+                    let discordJobs = [];
+                    for (let key in snapshot.val()) {
+                        let urlKey = key.replace('|', '/');
+                        let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                            .catch((err) => {
+                                // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
+                                if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
+                                    || err.code === Constants.APIErrors.INVALID_WEBHOOK_TOKEN
+                                ) {
+                                    let refHook = admin.database().ref('discord/' + member.id + '/' + key);
+                                    return refHook.remove()
+                                        .then(() => functions.logger.info("Remove an invalid webhook.", key))
+                                        .catch((err) => functions.logger.error("Fail to remove an invalid webhook.", key, err));
+                                } else {
+                                    functions.logger.info("Fail to send discord and will retry.", key, err);
+
+                                    return sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                                        .catch((err) => functions.logger.error("Fail to send discord.", key, err));
+                                }
+                            });
+                        discordJobs.push(discoJob);
+                    }
+
+                    await Promise.allSettled(discordJobs);
+                });
+                subJobs.push(subJob);
+
+                return Promise.allSettled(subJobs);
+            });
+            jobs.push(msgJob);
+        }
+    }
+
+    if (prevFcmJob !== null) {
+        await prevFcmJob;
+    }
+
+    await Promise.allSettled(jobs);
+}
+
 exports.watchStreams = functions.region(cloudRegion).pubsub.schedule('every 1 minutes').onRun(async (context) => {
     let refTime = admin.database().ref('lasttime');
     let time = (await refTime.get()).val();
@@ -545,7 +877,7 @@ exports.watchStreams = functions.region(cloudRegion).pubsub.schedule('every 1 mi
         return null;
     }
 
-    await streamJob();
+    await Promise.allSettled([streamJob(), afreecaJob()]);
 
     await refTime.set(Date.now());
 
@@ -560,7 +892,7 @@ exports.updateStreams = functions.region(cloudRegion).https.onRequest(async (req
         return;
     }
 
-    await streamJob();
+    await Promise.allSettled([streamJob(), afreecaJob()]);
 
     let now = Date.now();
     let refTime = admin.database().ref('lasttime');
