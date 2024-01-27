@@ -3,20 +3,26 @@ importScripts('https://www.gstatic.com/firebasejs/9.8.4/firebase-messaging-compa
 
 self.addEventListener('notificationclick', function(e) {
     const members = {
-        'jururu': 'cotton__123',
-        'jingburger': 'jingburger',
-        'viichan': 'viichan6',
-        'gosegu': 'gosegugosegu',
-        'lilpa': 'lilpaaaaaa',
-        'ine': 'vo_ine',
-        //'wak': 'woowakgood',
+        'jururu': { tw: 'cotton__123', af: 'cotton1217', x: 'jururu_twitch' },
+        'jingburger': { tw: 'jingburger', af: 'jingburger1', x: 'jing_burger' },
+        'viichan': { tw: 'viichan6', af: 'viichan6', x: 'VIichan6' },
+        'gosegu': { tw: 'gosegugosegu', af: 'gosegu2', x: 'gosegu486385' },
+        'lilpa': { tw: 'lilpaaaaaa', af: 'lilpa0309', x: 'lilpa_official' },
+        'ine': { tw: 'vo_ine', af: 'inehine', x: '' },
     };
-    const id = e.notification.tag;
+    const tags = e.notification.tag.split(',');
+    const id = tags[0];
+    const type = tags.length > 1 ? tags[1] : null;
     if (!(id in members)) {
         e.notification.close();
         return;
     }
-    const url = "https://www.twitch.tv/" + members[id];
+    let url = "https://www.twitch.tv/" + members[id].tw;
+    if (type === 'space') {
+        url = "https://twitter.com/" + members[id].x;
+    } else if (type === 'afreeca') {
+        url = "https://play.afreecatv.com/" + members[id].af;
+    }
 
     e.notification.close();
     e.waitUntil(clients.matchAll({type: 'window'}).then((windowClients) => {
@@ -70,7 +76,11 @@ messaging.onBackgroundMessage((payload) => {
 
     let titleInfo = [];
     if (data.onlineChanged) {
-        titleInfo.push(data.online ? "뱅온" : "뱅종");
+        if (data.type === 'space') {
+            titleInfo.push(data.online ? "스페온" : "스페끝");
+        } else {
+            titleInfo.push(data.online ? "뱅온" : "뱅종");
+        }
     }
     if (data.titleChanged) {
         titleInfo.push("방제");
@@ -81,11 +91,16 @@ messaging.onBackgroundMessage((payload) => {
     let notiTitle = (data.online ? "🔴 " : "⚫ ");
     notiTitle += members[data.id] + " " + titleInfo.join(", ") + " 알림";
 
+    let tag = data.id;
+    if (data.type) {
+        tag += "," + data.type;
+    }
+
     const notiOptions = {
         body: data.title + "\n" + data.category,
         icon: '/image/' + data.id + '.png',
         badge: '/image/badge.png',
-        tag: data.id,
+        tag,
     };
 
     return self.registration.showNotification(notiTitle, notiOptions);
