@@ -128,8 +128,13 @@ async function removeUnregisteredTokens(tokens: string[]) {
     }
 }
 
-async function sendTelegram(bot: TelegramBot, id: string, msg: string): Promise<void> {
-    await bot.sendMessage('@' + id + '_stream_noti', msg);
+async function sendTelegram(bot: TelegramBot, id: string, msg: string, imgBuff: Buffer | null): Promise<void> {
+    const chatId = '@' + id + '_stream_noti';
+    if (imgBuff) {
+        await bot.sendPhoto(chatId, imgBuff, { caption: msg });
+    } else {
+        await bot.sendMessage(chatId, msg);
+    }
 }
 
 async function sendTweet(client: TwitterApi, msg: string, jpgImg: Buffer | null): Promise<void> {
@@ -466,25 +471,21 @@ async function streamJob() {
                 jobs.push(stageJob);
             }
 
-            // 텔레그램 전송.
-            //
-
-            let telgMsg = (newData.online ? "🔴 " : "⚫ ") + msg;
-            if (newData.online) {
-                telgMsg += `\ntinyurl.com/${member.id}-twpre${stage}?t=${Date.now()}`;
-            }
-
-            let msgJob: Promise<any> = sendTelegram(bot, member.id, telgMsg)
-                .catch((err) => functions.logger.error("Fail to send telegram.", err));
-            jobs.push(msgJob);
-
             // 썸네일 얻고 나머지 플랫폼에 전송.
             let imgJob: Promise<Buffer | null> = Promise.resolve(null);
             if (newData.online) {
                 imgJob = getLatestPreview(member, stage);
             }
-            msgJob = imgJob.then((imgBuff) => {
+            let msgJob = imgJob.then((imgBuff) => {
                 let subJobs = [];
+
+                // 텔레그램 전송.
+                //
+
+                let telgMsg = (newData.online ? "🔴 " : "⚫ ") + msg;
+                let subJob = sendTelegram(bot!, member.id, telgMsg, imgBuff)
+                    .catch((err) => functions.logger.error("Fail to send telegram.", err));
+                subJobs.push(subJob);
 
                 // 트윗 전송.
                 //
@@ -502,7 +503,7 @@ async function streamJob() {
                 }
                 msg = tweetHead + msg + tweetTail;
 
-                let subJob = sendTweet(twitterClient!, msg, imgBuff)
+                subJob = sendTweet(twitterClient!, msg, imgBuff)
                     .catch((err) => functions.logger.error("Fail to send tweet.", err));
                 subJobs.push(subJob);
 
@@ -774,25 +775,25 @@ async function afreecaJob() {
                 msg += '\n' + newData.category;
             }
 
-            // 텔레그램 전송.
-            //
-
-            let telgMsg = (newData.online ? "🔴 " : "⚫ ") + msg;
-            if (live.online) {
-                telgMsg += `\nhttps://liveimg.afreecatv.com/${live.broadNo}?t=${Date.now()}`;
-            }
-
-            let msgJob: Promise<any> = sendTelegram(bot, member.id, telgMsg)
-                .catch((err) => functions.logger.error("Fail to send telegram.", err));
-            jobs.push(msgJob);
-
             // 썸네일 얻고 나머지 플랫폼에 전송.
             let imgJob: Promise<Buffer | null> = Promise.resolve(null);
             if (live.online) {
                 imgJob = getAfreecaPreview(live.broadNo);
             }
-            msgJob = imgJob.then((imgBuff) => {
+            let msgJob = imgJob.then((imgBuff) => {
                 let subJobs = [];
+
+                // 텔레그램 전송.
+                //
+
+                let telgMsg = (newData.online ? "🔴 " : "⚫ ") + msg;
+                if (live.online) {
+                    telgMsg += `\nhttps://liveimg.afreecatv.com/${live.broadNo}?t=${Date.now()}`;
+                }
+
+                let subJob = sendTelegram(bot!, member.id, telgMsg, imgBuff)
+                    .catch((err) => functions.logger.error("Fail to send telegram.", err));
+                subJobs.push(subJob);
 
                 // 트윗 전송.
                 //
@@ -811,7 +812,7 @@ async function afreecaJob() {
                 msg = tweetHead + msg + tweetTail;
 
                 // TODO: 주석 제거하여 트윗 전송되도록 함.
-                let subJob/* = sendTweet(twitterClient!, msg, imgBuff)
+                /*subJob = sendTweet(twitterClient!, msg, imgBuff)
                     .catch((err) => functions.logger.error("Fail to send tweet.", err));
                 subJobs.push(subJob);*/
 
