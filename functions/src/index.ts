@@ -149,17 +149,19 @@ async function sendTweet(client: TwitterApi, msg: string, jpgImg: Buffer | null)
     }
 }
 
-async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string, msgContent: string, msgImg: string, timestamp: Date): Promise<void> {
+async function sendDiscord(urlKey: string, member: MemberData, msgTitle: string, msgContent: string, msgUrl: string, msgImg: string, timestamp: Date): Promise<void> {
     let webhookClient = new WebhookClient({ url: 'https://discord.com/api/webhooks/' + urlKey });
 
     let embed = new MessageEmbed()
         .setTitle(msgTitle)
         .setColor(member.color)
-        .setURL('https://www.twitch.tv/' + member.twitchName)
         .setDescription(msgContent)
         .setTimestamp(timestamp);
     
-    if (msgImg && msgImg !== '') {
+    if (msgUrl) {
+        embed = embed.setURL(msgUrl);
+    }
+    if (msgImg) {
         embed = embed.setImage(msgImg);
     }
 
@@ -518,11 +520,12 @@ async function streamJob() {
 
                     let msgTitle = (newData.online ? "🔴 " : "⚫ ") + titleInfo.join(", ") + " 알림";
                     let msgContent = newData.title + '\n' + newData.category;
+                    let msgUrl = 'https://www.twitch.tv/' + member.twitchName;
 
                     let discordJobs = [];
                     for (let key in snapshot.val()) {
                         let urlKey = key.replace('|', '/');
-                        let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                        let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, msgUrl, previewImg, now)
                             .catch((err) => {
                                 // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
                                 if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
@@ -535,7 +538,7 @@ async function streamJob() {
                                 } else {
                                     functions.logger.info("Fail to send discord and will retry.", key, err);
 
-                                    return sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                                    return sendDiscord(urlKey, member, msgTitle, msgContent, msgUrl, previewImg, now)
                                         .catch((err) => functions.logger.error("Fail to send discord.", key, err));
                                 }
                             });
@@ -826,11 +829,12 @@ async function afreecaJob() {
 
                     let msgTitle = (newData.online ? "🔴 " : "⚫ ") + titleInfo.join(", ") + " 알림";
                     let msgContent = newData.title + '\n' + newData.category;
+                    let msgUrl = 'https://play.afreecatv.com/' + member.afreecaId;
 
                     let discordJobs = [];
                     for (let key in snapshot.val()) {
                         let urlKey = key.replace('|', '/');
-                        let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                        let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, msgUrl, previewImg, now)
                             .catch((err) => {
                                 // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
                                 if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
@@ -843,7 +847,7 @@ async function afreecaJob() {
                                 } else {
                                     functions.logger.info("Fail to send discord and will retry.", key, err);
 
-                                    return sendDiscord(urlKey, member, msgTitle, msgContent, previewImg, now)
+                                    return sendDiscord(urlKey, member, msgTitle, msgContent, msgUrl, previewImg, now)
                                         .catch((err) => functions.logger.error("Fail to send discord.", key, err));
                                 }
                             });
@@ -956,7 +960,7 @@ exports.checkWebhook = functions.region(cloudRegion).database.ref('/discord/{mem
     let msgContent = "정상적으로 등록되었습니다.";
 
     try {
-        await sendDiscord(webhookKey.replace('|', '/'), member, msgTitle, msgContent, '', new Date());
+        await sendDiscord(webhookKey.replace('|', '/'), member, msgTitle, msgContent, '', '', new Date());
         functions.logger.info("Webhook checked.", memberId, webhookKey);
     } catch (err: any) {
         // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
