@@ -17,8 +17,8 @@
     "@twurple/auth": "^5.0.18",
     "@types/node-telegram-bot-api": "^0.57.1",
     "discord.js": "^13.8.0",
-    "firebase-admin": "^11.9.0",
-    "firebase-functions": "^4.4.1",
+    "firebase-admin": "^11.11.1",
+    "firebase-functions": "^4.6.0",
     "node-abort-controller": "^3.0.1",
     "node-fetch": "^2.6.7",
     "node-telegram-bot-api": "^0.57.0",
@@ -30,7 +30,7 @@
     "eslint": "^8.9.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.25.4",
-    "firebase-functions-test": "^2.2.0",
+    "firebase-functions-test": "^2.4.0",
     "typescript": "^4.5.4"
   },
   "private": true
