@@ -677,8 +677,8 @@ async function afreecaJob() {
         }
 
         let onlineChanged = (dbData.online !== newData.online);
-        let titleChanged = (newData.online && dbData.title !== newData.title);
-        let categoryChanged = (newData.online && dbData.category !== newData.category);
+        let titleChanged = (dbData.title !== newData.title);
+        let categoryChanged = (dbData.category !== newData.category);
 
         // 뱅종일 경우 뱅종 시간 저장.
         let offTime = 0;
@@ -697,6 +697,42 @@ async function afreecaJob() {
             let dbJob = refStream.set(newData)
                 .then(() => functions.logger.info("Stream data updated.", newData))
                 .catch((err) => functions.logger.error("Fail to update the stream data.", err));
+            jobs.push(dbJob);
+        }
+
+        // 이전 방제, 카테고리 및 변경 시간 기록.
+        if (titleChanged || categoryChanged) {
+            let refPrev = admin.database().ref('afreeca-prev/' + member.id);
+            let prev = (await refPrev.get()).val();
+
+            let now = Date.now();
+
+            let newPrev = {
+                title: dbData.title,
+                category: dbData.category,
+                time: {
+                    title: now,
+                    category: now,
+                },
+            };
+
+            if (prev) {
+                // 현재 DB의 정보를 이전 데이터로 저장.
+                newPrev = Object.assign({}, prev);
+                newPrev.time = Object.assign({}, prev.time);
+                if (titleChanged) {
+                    newPrev.title = dbData.title;
+                    newPrev.time.title = now;
+                }
+                if (categoryChanged) {
+                    newPrev.category = dbData.category;
+                    newPrev.time.category = now;
+                }
+            }
+
+            let dbJob = refPrev.set(newPrev)
+                .then(() => functions.logger.info("Previous afreeca data updated."))
+                .catch((err) => functions.logger.error("Fail to update the previous afreeca data.", err));
             jobs.push(dbJob);
         }
 
