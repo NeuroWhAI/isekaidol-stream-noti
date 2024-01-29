@@ -646,6 +646,7 @@ async function afreecaJob() {
     const members: MemberData[] = [
         { id: 'roent', name: '뢴트게늄', twitchId: '', twitchName: '', afreecaId: 'jey422', color: '#ff69b4' },
         { id: 'mawang', name: '마왕', twitchId: '', twitchName: '', afreecaId: 'mawang0216', color: '#2eccfa' },
+        { id: 'calmdown', name: '침착맨', twitchId: '', twitchName: '', afreecaId: 'maruko86', color: '#c50167' },
     ];
 
     let jobs: Promise<any>[] = [];
