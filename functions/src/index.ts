@@ -707,27 +707,16 @@ async function afreecaJob() {
 
             let now = Date.now();
 
-            let newPrev = {
-                title: dbData.title,
-                category: dbData.category,
-                time: {
-                    title: now,
-                    category: now,
-                },
-            };
-
-            if (prev) {
-                // 현재 DB의 정보를 이전 데이터로 저장.
-                newPrev = Object.assign({}, prev);
-                newPrev.time = Object.assign({}, prev.time);
-                if (titleChanged) {
-                    newPrev.title = dbData.title;
-                    newPrev.time.title = now;
-                }
-                if (categoryChanged) {
-                    newPrev.category = dbData.category;
-                    newPrev.time.category = now;
-                }
+            // 현재 DB의 정보를 이전 데이터로 저장.
+            let newPrev = Object.assign({}, prev);
+            newPrev.time = Object.assign({}, prev.time);
+            if (titleChanged) {
+                newPrev.title = dbData.title;
+                newPrev.time.title = now;
+            }
+            if (categoryChanged) {
+                newPrev.category = dbData.category;
+                newPrev.time.category = now;
             }
 
             let dbJob = refPrev.set(newPrev)
