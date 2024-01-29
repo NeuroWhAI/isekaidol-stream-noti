@@ -1,13 +1,13 @@
 # Isekaidol Stream Noti
 
-[이세계아이돌(이세돌)](https://namu.wiki/w/%EC%9D%B4%EC%84%B8%EA%B3%84%EC%95%84%EC%9D%B4%EB%8F%8C) 트위치 뱅온 및 방제, 카테고리 변경 알림 서비스.  
+[이세계아이돌(이세돌)](https://namu.wiki/w/%EC%9D%B4%EC%84%B8%EA%B3%84%EC%95%84%EC%9D%B4%EB%8F%8C) 트위치/아프리카 뱅온 및 방제, 카테고리 변경 알림 서비스.  
 [https://isekaidol-stream-noti.web.app/](https://isekaidol-stream-noti.web.app/)
 
 ![Demo](./res/demo.png)
 
 ## 기능
 
-- 이세계아이돌 멤버들의 트위치 채널을 모니터링하여 아래 경우에 알림.  
+- 이세계아이돌 멤버들의 트위치/아프리카 채널을 모니터링하여 아래 경우에 알림.  
   (웹 페이지를 열어두지 않아도 됨.)
   - 방송이 켜짐.
   - 채널의 제목이 변경됨.
@@ -69,7 +69,7 @@ flowchart BT
 
     FN -- 알림 요청 --> END(Telegram, Twitter, Discord)
     FN -- 구독 설정, 알림 요청 --> M(Messaging)
-    TW(Twitch) -- 방송 정보 제공 --> FN
+    BP(Twitch, Afreeca) -- 방송 정보 제공 --> FN
 
     M -- 푸시 알림 --> P
 ```
