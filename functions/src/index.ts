@@ -13,7 +13,7 @@ import TelegramBot = require('node-telegram-bot-api');
 
 admin.initializeApp();
 
-const cloudRegion = 'asia-southeast1';
+const cloudRegion = 'asia-northeast3';
 
 const clientId = process.env.TWITCH_ID;
 const clientSecret = process.env.TWITCH_SEC;
