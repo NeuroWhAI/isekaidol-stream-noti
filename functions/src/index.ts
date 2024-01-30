@@ -813,10 +813,6 @@ async function afreecaJob() {
                 //
 
                 let telgMsg = (newData.online ? "🔴 " : "⚫ ") + msg;
-                if (live.online) {
-                    telgMsg += `\nhttps://liveimg.afreecatv.com/${live.broadNo}?t=${Date.now()}`;
-                }
-
                 let subJob = sendTelegram(bot!, member.id, telgMsg, imgBuff)
                     .catch((err) => functions.logger.error("Fail to send telegram.", err));
                 subJobs.push(subJob);
