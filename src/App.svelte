@@ -58,7 +58,7 @@
     }
 
     // 방송 정보가 바뀌면 받아서 갱신.
-    FireDb.onValue(FireDb.ref(database, 'stream'), (snapshot) => {
+    FireDb.onValue(FireDb.ref(database, 'afreeca'), (snapshot) => {
         streamData = snapshot.val();
     });
 
@@ -358,7 +358,7 @@
         }
     }
 
-    FireDb.onValue(FireDb.ref(database, 'prev'), (snapshot) => {
+    FireDb.onValue(FireDb.ref(database, 'afreeca-prev'), (snapshot) => {
         prevData = snapshot.val();
         updateNewTitleAndCategory();
     });
