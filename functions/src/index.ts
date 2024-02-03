@@ -131,7 +131,12 @@ async function removeUnregisteredTokens(tokens: string[]) {
 async function sendTelegram(bot: TelegramBot, id: string, msg: string, imgBuff: Buffer | null): Promise<void> {
     const chatId = '@' + id + '_stream_noti';
     if (imgBuff) {
-        await bot.sendPhoto(chatId, imgBuff, { caption: msg });
+        try {
+            await bot.sendPhoto(chatId, imgBuff, { caption: msg });
+        } catch (err) {
+            functions.logger.error("Fail to send a telegram photo message.", err);
+            await bot.sendMessage(chatId, msg);
+        }
     } else {
         await bot.sendMessage(chatId, msg);
     }
@@ -256,9 +261,13 @@ async function getAfreecaPreview(broadNo: string): Promise<Buffer | null> {
     try {
         let imgUrl = `https://liveimg.afreecatv.com/${broadNo}?tt=${Date.now()}`;
         let res = await fetch(imgUrl, { signal: abortCtrl.signal });
-        imgBuff = await res.buffer();
 
-        functions.logger.info("Getting a preview success.");
+        if (res.ok) {
+            imgBuff = await res.buffer();
+            functions.logger.info("Getting a preview success.");
+        } else {
+            functions.logger.error("Fail to get a preview image.", res.status);
+        }
     } catch (err) {
         functions.logger.error("Fail to get a preview image.", err);
     }
