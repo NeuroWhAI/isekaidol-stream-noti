@@ -152,7 +152,7 @@ async function sendTweet(client: TwitterApi, msg: string, jpgImg: Buffer | null)
         }
     }
 
-    if (imageId && imageId !== '') {
+    if (imageId) {
         await client.v2.tweet({ text: msg, media: { media_ids: [imageId] } });
     } else {
         await client.v2.tweet({ text: msg });
@@ -651,13 +651,6 @@ async function afreecaJob() {
         return;
     }
 
-    // TODO: 테스트용 멤버이며 추후 삭제하여 전역 members 참조.
-    const members: MemberData[] = [
-        { id: 'roent', name: '뢴트게늄', twitchId: '', twitchName: '', afreecaId: 'jey422', color: '#ff69b4' },
-        { id: 'mawang', name: '마왕', twitchId: '', twitchName: '', afreecaId: 'mawang0216', color: '#2eccfa' },
-        { id: 'calmdown', name: '침착맨', twitchId: '', twitchName: '', afreecaId: 'maruko86', color: '#c50167' },
-    ];
-
     let jobs: Promise<any>[] = [];
     let prevFcmJob: Promise<void> | null = null;
 
@@ -740,53 +733,51 @@ async function afreecaJob() {
             // FCM 메시지 전송.
             //
 
-            // TODO: 주석 삭제.
-            // let message = {
-            //     data: {
-            //         type: 'afreeca',
-            //         id: member.id,
-            //         online: String(newData.online),
-            //         title: newData.title,
-            //         category: newData.category,
-            //         onlineChanged: String(onlineChanged),
-            //         titleChanged: String(titleChanged),
-            //         categoryChanged: String(categoryChanged),
-            //     },
-            //     topic: member.id,
-            //     webpush: {
-            //         headers: {
-            //             "TTL": "1200",
-            //             "Urgency": "high",
-            //         }
-            //     }
-            // };
+            let message = {
+                data: {
+                    type: 'afreeca',
+                    id: member.id,
+                    online: String(newData.online),
+                    title: newData.title,
+                    category: newData.category,
+                    onlineChanged: String(onlineChanged),
+                    titleChanged: String(titleChanged),
+                    categoryChanged: String(categoryChanged),
+                },
+                topic: member.id,
+                webpush: {
+                    headers: {
+                        "TTL": "1200",
+                        "Urgency": "high",
+                    }
+                }
+            };
 
             // FCM 전송은 동시 실행되면 오류날 가능성이 높다고 함.
             if (prevFcmJob !== null) {
                 await prevFcmJob;
             }
 
-            // TODO: 주석 제거하여 FCM 전송.
-            // prevFcmJob = admin.messaging().send(message)
-            //     .then((res) => functions.logger.info("Messaging success.", message, res))
-            //     .catch(async (err) => {
-            //         functions.logger.info("Messaging fail and will retry.", message, err);
-            //         const maxRetry = 2;
-            //         for (let retry = 1; retry <= maxRetry; retry++) {
-            //             try {
-            //                 await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retry) + Math.random() * 500));
-            //                 const res = await admin.messaging().send(message);
-            //                 functions.logger.info("Messaging success.", message, res);
-            //                 break;
-            //             } catch (err) {
-            //                 if (retry >= maxRetry) {
-            //                     functions.logger.warn("Messaging maybe fail.", message, err);
-            //                 } else {
-            //                     functions.logger.info("Messaging fail again and will retry.", message, err);
-            //                 }
-            //             }
-            //         }
-            //     });
+            prevFcmJob = admin.messaging().send(message)
+                .then((res) => functions.logger.info("Messaging success.", message, res))
+                .catch(async (err) => {
+                    functions.logger.info("Messaging fail and will retry.", message, err);
+                    const maxRetry = 2;
+                    for (let retry = 1; retry <= maxRetry; retry++) {
+                        try {
+                            await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retry) + Math.random() * 500));
+                            const res = await admin.messaging().send(message);
+                            functions.logger.info("Messaging success.", message, res);
+                            break;
+                        } catch (err) {
+                            if (retry >= maxRetry) {
+                                functions.logger.warn("Messaging maybe fail.", message, err);
+                            } else {
+                                functions.logger.info("Messaging fail again and will retry.", message, err);
+                            }
+                        }
+                    }
+                });
 
             // 메시지 조합.
             //
@@ -842,10 +833,9 @@ async function afreecaJob() {
                 }
                 msg = tweetHead + msg + tweetTail;
 
-                // TODO: 주석 제거하여 트윗 전송되도록 함.
-                /*subJob = sendTweet(twitterClient!, msg, imgBuff)
+                subJob = sendTweet(twitterClient!, msg, imgBuff)
                     .catch((err) => functions.logger.error("Fail to send tweet.", err));
-                subJobs.push(subJob);*/
+                subJobs.push(subJob);
 
                 // 디스코드 웹훅 실행.
                 //
