@@ -365,7 +365,7 @@ async function streamJob() {
 
         // 뱅온 알림이 울릴 조건일 때 이전 뱅종 시간 대비 충분한 시간이 지나지 않았으면 알림을 울리지 않도록 함.
         // 또는 뱅종 상태인데 제목, 카테고리가 변경된 경우 뱅종 이후 일정 시간이 지나지 않았다면 뱅온 상태인 것으로 봄.
-        if((onlineChanged && newData.online) || (!newData.online && (titleChanged || categoryChanged))) {
+        if ((onlineChanged && newData.online) || (!newData.online && (titleChanged || categoryChanged))) {
             if (offTime <= 0) {
                 try {
                     let refOffTime = admin.database().ref('offtime/' + member.id);
@@ -725,6 +725,24 @@ async function afreecaJob() {
                 .then(() => functions.logger.info("Previous afreeca data updated."))
                 .catch((err) => functions.logger.error("Fail to update the previous afreeca data.", err));
             jobs.push(dbJob);
+        }
+
+        // 뱅온 알림이 울릴 조건일 때 이전 뱅종 시간 대비 충분한 시간이 지나지 않았으면 알림을 울리지 않도록 함.
+        if (onlineChanged && newData.online) {
+            if (offTime <= 0) {
+                try {
+                    let refOffTime = admin.database().ref('offtime/' + member.id);
+                    offTime = (await refOffTime.get()).val();
+                } catch (err) {
+                    functions.logger.error("Fail to get offline time.", member.id, err);
+                }
+            }
+
+            const maxOffIgnoreTime = 90 * 1000;
+            if (Date.now() - offTime < maxOffIgnoreTime) {
+                onlineChanged = false;
+                functions.logger.info("Keep stream status online.")
+            }
         }
 
         // 알림 전송.
