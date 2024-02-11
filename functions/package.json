@@ -13,8 +13,6 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@twurple/api": "^5.0.18",
-    "@twurple/auth": "^5.0.18",
     "@types/node-telegram-bot-api": "^0.57.1",
     "discord.js": "^13.8.0",
     "firebase-admin": "^11.11.1",
