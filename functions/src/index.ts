@@ -4,8 +4,6 @@ import fetch from 'node-fetch';
 import { AbortController } from "node-abort-controller";
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { ClientCredentialsAuthProvider } from '@twurple/auth';
-import { ApiClient } from '@twurple/api';
 import { EUploadMimeType, TwitterApi } from 'twitter-api-v2';
 import { HexColorString, MessageEmbed, WebhookClient, Constants } from 'discord.js';
 
@@ -15,21 +13,12 @@ admin.initializeApp();
 
 const cloudRegion = 'asia-northeast3';
 
-const clientId = process.env.TWITCH_ID;
-const clientSecret = process.env.TWITCH_SEC;
 const botToken = process.env.BOT_TOKEN;
 const httpKey = process.env.HTTP_JOB_KEY;
 const twitterAppKey = process.env.TWITTER_APP_KEY;
 const twitterAppSecret = process.env.TWITTER_APP_SECRET;
 const twitterAccessToken = process.env.TWITTER_ACCESS_TOKEN;
 const twitterAccessSecret = process.env.TWITTER_ACCESS_SECRET;
-
-let authProvider: ClientCredentialsAuthProvider | null = null;
-let apiClient: ApiClient | null = null;
-if (clientId && clientSecret) {
-    authProvider = new ClientCredentialsAuthProvider(clientId, clientSecret);
-    apiClient = new ApiClient({ authProvider });
-}
 
 let bot: TelegramBot | null = null;
 if (botToken) {
@@ -49,18 +38,16 @@ if (twitterAppKey && twitterAppSecret && twitterAccessToken && twitterAccessSecr
 interface MemberData {
     id: string,
     name: string,
-    twitchId: string,
-    twitchName: string,
     afreecaId: string,
     color: HexColorString,
 }
 const members: MemberData[] = [
-    { id: 'jururu', name: '주르르', twitchId: '203667951', twitchName: 'cotton__123', afreecaId: 'cotton1217', color: '#ffacac' },
-    { id: 'jingburger', name: '징버거', twitchId: '237570548', twitchName: 'jingburger', afreecaId: 'jingburger1', color: '#f0a957' },
-    { id: 'viichan', name: '비챤', twitchId: '195641865', twitchName: 'viichan6', afreecaId: 'viichan6', color: '#85ac20' },
-    { id: 'gosegu', name: '고세구', twitchId: '707328484', twitchName: 'gosegugosegu', afreecaId: 'gosegu2', color: '#467ec6' },
-    { id: 'lilpa', name: '릴파', twitchId: '169700336', twitchName: 'lilpaaaaaa', afreecaId: 'lilpa0309', color: '#3e52d9' },
-    { id: 'ine', name: '아이네', twitchId: '702754423', twitchName: 'vo_ine', afreecaId: 'inehine', color: '#8a2be2' },
+    { id: 'jururu', name: '주르르', afreecaId: 'cotton1217', color: '#ffacac' },
+    { id: 'jingburger', name: '징버거', afreecaId: 'jingburger1', color: '#f0a957' },
+    { id: 'viichan', name: '비챤', afreecaId: 'viichan6', color: '#85ac20' },
+    { id: 'gosegu', name: '고세구', afreecaId: 'gosegu2', color: '#467ec6' },
+    { id: 'lilpa', name: '릴파', afreecaId: 'lilpa0309', color: '#3e52d9' },
+    { id: 'ine', name: '아이네', afreecaId: 'inehine', color: '#8a2be2' },
 ];
 
 function encodeFcmToken(token: string): string {
@@ -213,45 +200,6 @@ async function uploadImage(jpgBuff: Buffer, fileName: string): Promise<string | 
     return null;
 }
 
-async function getLatestPreview(member: MemberData, stage: number): Promise<Buffer | null> {
-    let abortCtrl = new AbortController();
-    let timeoutId = setTimeout(() => abortCtrl.abort(), 4 * 1000);
-
-    let imgBuff = null;
-
-    try {
-        let sizeList = [[1920, 1080], [1280, 720], [640, 360]];
-        for (let origSize of sizeList) {
-            let size = `${origSize[0] + stage * 2}x${origSize[1] + stage}`;
-            let imgUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-${size}.jpg?tt=${Date.now()}`;
-            let res = await fetch(imgUrl, { signal: abortCtrl.signal });
-
-            // max-age 값이 일정 값 이상이면 썸네일이 없는 것으로 보고 다른 해상도의 썸네일 얻기 시도.
-            let cacheCtrl = res.headers.get('cache-control');
-            let maxCacheAge = cacheCtrl?.includes('max-age=') ? parseInt(cacheCtrl.split('=')[1]) : -1;
-            if (maxCacheAge > 400) {
-                functions.logger.info("Ignore a default preview.", size, maxCacheAge);
-                continue;
-            }
-
-            imgBuff = await res.buffer();
-
-            functions.logger.info("Getting a preview success.", size);
-            break;
-        }
-
-        if (imgBuff === null) {
-            functions.logger.error("Fail to get a preview image.");
-        }
-    } catch (err) {
-        functions.logger.error("Fail to get a preview image.", err);
-    }
-
-    clearTimeout(timeoutId);
-
-    return imgBuff;
-}
-
 async function getAfreecaPreview(broadNo: string): Promise<Buffer | null> {
     let abortCtrl = new AbortController();
     let timeoutId = setTimeout(() => abortCtrl.abort(), 4 * 1000);
@@ -275,301 +223,6 @@ async function getAfreecaPreview(broadNo: string): Promise<Buffer | null> {
     clearTimeout(timeoutId);
 
     return imgBuff;
-}
-
-// TODO: 트위치 제거.
-async function streamJob() {
-    if (apiClient === null || bot === null || twitterClient === null) {
-        functions.logger.warn("Twitch or Telegram or Twitter are not prepared!");
-        return;
-    }
-
-    let jobs: Promise<any>[] = [];
-    let prevFcmJob: Promise<void> | null = null;
-
-    for (let member of members) {
-        let stream = await apiClient.streams.getStreamByUserId(member.twitchId);
-        let newData = {
-            online: stream !== null,
-            title: stream?.title ?? '',
-            category: stream?.gameName ?? '',
-        };
-        if (stream === null) {
-            let channel = await apiClient.channels.getChannelInfoById(member.twitchId);
-            newData.title = channel?.title ?? '';
-            newData.category = channel?.gameName ?? '';
-        }
-
-        let refStream = admin.database().ref('stream/' + member.id);
-        let dbData = (await refStream.get()).val();
-
-        let onlineChanged = (dbData.online !== newData.online);
-        let titleChanged = (dbData.title !== newData.title);
-        let categoryChanged = (dbData.category !== newData.category);
-
-        // 뱅종인데 서버 오류일 수 있으니 시간 저장하여 추후 확인.
-        let offTime = 0;
-        if (onlineChanged && !newData.online) {
-            try {
-                let refOffTime = admin.database().ref('offtime/' + member.id);
-                offTime = Date.now();
-                await refOffTime.set(offTime);
-            } catch (err) {
-                functions.logger.error("Fail to set offline time.", member.id, err);
-            }
-        }
-
-        // 사이트 표시용 DB 갱신.
-        if (onlineChanged || titleChanged || categoryChanged) {
-            let dbJob = refStream.set(newData)
-                .then(() => functions.logger.info("Stream data updated.", newData))
-                .catch((err) => functions.logger.error("Fail to update the stream data.", err));
-            jobs.push(dbJob);
-        }
-
-        // 방제, 카테고리가 짧은 시간 안에 이전 것으로 원복되었다 다시 원래대로 돌아오는 경우 알림 방지.
-        if (titleChanged || categoryChanged) {
-            let refPrev = admin.database().ref('prev/' + member.id);
-            let prev = (await refPrev.get()).val();
-
-            let now = Date.now();
-
-            // 현재 DB의 정보를 이전 데이터로 저장.
-            let newPrev = Object.assign({}, prev);
-            newPrev.time = Object.assign({}, prev.time);
-            if (titleChanged) {
-                newPrev.title = dbData.title;
-                newPrev.time.title = now;
-            }
-            if (categoryChanged) {
-                newPrev.category = dbData.category;
-                newPrev.time.category = now;
-            }
-
-            let dbJob = refPrev.set(newPrev)
-                .then(() => functions.logger.info("Previous data updated."))
-                .catch((err) => functions.logger.error("Fail to update the previous data.", err));
-            jobs.push(dbJob);
-
-            // 새로 받은 정보가 이전에 바뀌기 전과 같고 그렇게 바뀐지 얼마되지 않았으면 무시.
-            const maxIgnoreTime = 12 * 1000;
-            if (prev.title === newData.title && now - prev.time.title < maxIgnoreTime) {
-                titleChanged = false;
-                functions.logger.info("Title notification is ignored.");
-            }
-            if (prev.category === newData.category && now - prev.time.category < maxIgnoreTime) {
-                categoryChanged = false;
-                functions.logger.info("Category notification is ignored.");
-            }
-        }
-
-        // 뱅온 알림이 울릴 조건일 때 이전 뱅종 시간 대비 충분한 시간이 지나지 않았으면 알림을 울리지 않도록 함.
-        // 또는 뱅종 상태인데 제목, 카테고리가 변경된 경우 뱅종 이후 일정 시간이 지나지 않았다면 뱅온 상태인 것으로 봄.
-        if ((onlineChanged && newData.online) || (!newData.online && (titleChanged || categoryChanged))) {
-            if (offTime <= 0) {
-                try {
-                    let refOffTime = admin.database().ref('offtime/' + member.id);
-                    offTime = (await refOffTime.get()).val();
-                } catch (err) {
-                    functions.logger.error("Fail to get offline time.", member.id, err);
-                }
-            }
-
-            const maxOffIgnoreTime = 90 * 1000;
-            if (Date.now() - offTime < maxOffIgnoreTime) {
-                newData.online = true;
-                onlineChanged = false;
-                functions.logger.info("Keep stream status online.")
-            }
-        }
-
-        // 알림 전송.
-        // 단, 방종 및 방종 상태의 카테고리 변경은 알리지 않음.
-        if ((onlineChanged && newData.online) || titleChanged || (categoryChanged && newData.online)) {
-            // FCM 메시지 전송.
-            //
-
-            let message = {
-                data: {
-                    type: 'twitch',
-                    id: member.id,
-                    online: String(newData.online),
-                    title: newData.title,
-                    category: newData.category,
-                    onlineChanged: String(onlineChanged),
-                    titleChanged: String(titleChanged),
-                    categoryChanged: String(categoryChanged),
-                },
-                topic: member.id,
-                webpush: {
-                    headers: {
-                        "TTL": "1200",
-                        "Urgency": "high",
-                    }
-                }
-            };
-
-            // FCM 전송은 동시 실행되면 오류날 가능성이 높다고 함.
-            if (prevFcmJob !== null) {
-                await prevFcmJob;
-            }
-
-            prevFcmJob = admin.messaging().send(message)
-                .then((res) => functions.logger.info("Messaging success.", message, res))
-                .catch(async (err) => {
-                    functions.logger.info("Messaging fail and will retry.", message, err);
-                    const maxRetry = 2;
-                    for (let retry = 1; retry <= maxRetry; retry++) {
-                        try {
-                            await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retry) + Math.random() * 500));
-                            const res = await admin.messaging().send(message);
-                            functions.logger.info("Messaging success.", message, res);
-                            break;
-                        } catch (err) {
-                            if (retry >= maxRetry) {
-                                functions.logger.warn("Messaging maybe fail.", message, err);
-                            } else {
-                                functions.logger.info("Messaging fail again and will retry.", message, err);
-                            }
-                        }
-                    }
-                });
-
-            // 메시지 조합.
-            //
-
-            let titleInfo: string[] = [];
-            if (onlineChanged) {
-                titleInfo.push(newData.online ? "뱅온" : "뱅종");
-            }
-            if (titleChanged) {
-                titleInfo.push("방제");
-            }
-            if (categoryChanged) {
-                titleInfo.push("카테고리");
-            }
-
-            let msg = titleInfo.join(", ") + " 알림";
-            if (titleChanged) {
-                msg += '\n' + newData.title;
-            }
-            if (categoryChanged) {
-                msg += '\n' + newData.category;
-            }
-
-            // 최신 썸네일을 얻기 위한 오프셋 값 얻고 갱신.
-            //
-
-            let stage = 1;
-            if (newData.online) {
-                let refStage = admin.database().ref('preview/' + member.id);
-                stage = (await refStage.get()).val();
-
-                let nextStage = 0;
-                if (stage === 1) {
-                    nextStage = 2;
-                } else if (stage === 2) {
-                    nextStage = -2;
-                } else if (stage === -2) {
-                    nextStage = -1;
-                } else {
-                    nextStage = 1;
-                }
-
-                let stageJob = refStage.set(nextStage);
-                jobs.push(stageJob);
-            }
-
-            // 썸네일 얻고 나머지 플랫폼에 전송.
-            let imgJob: Promise<Buffer | null> = Promise.resolve(null);
-            if (newData.online) {
-                imgJob = getLatestPreview(member, stage);
-            }
-            let msgJob = imgJob.then((imgBuff) => {
-                let subJobs = [];
-
-                // 텔레그램 전송.
-                //
-
-                let telgMsg = (newData.online ? "🔴 " : "⚫ ") + msg;
-                let subJob = sendTelegram(bot!, member.id, telgMsg, imgBuff)
-                    .catch((err) => functions.logger.error("Fail to send telegram.", err));
-                subJobs.push(subJob);
-
-                // 트윗 전송.
-                //
-
-                // 중복 트윗 방지를 위해 시간 포함.
-                let now = new Date();
-                let utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-                now = new Date(utc + (3600000 * 9));
-
-                let tweetHead = (newData.online ? "🔴 " : "⚫ ") + member.name + ' ';
-                let tweetTail = "\n#이세돌 #이세계아이돌 #" + member.name + ' ' + now.toLocaleTimeString('ko-KR');
-                let tweetOverLen = tweetHead.length + tweetTail.length + msg.length - 140;
-                if (tweetOverLen > 0) {
-                    msg = msg.substring(0, Math.max(msg.length - tweetOverLen - 1, 0)) + '…';
-                }
-                msg = tweetHead + msg + tweetTail;
-
-                subJob = sendTweet(twitterClient!, msg, imgBuff)
-                    .catch((err) => functions.logger.error("Fail to send tweet.", err));
-                subJobs.push(subJob);
-
-                // 디스코드 웹훅 실행.
-                //
-
-                now = new Date();
-                let refDiscord = admin.database().ref('discord/' + member.id);
-                subJob = refDiscord.get().then(async (snapshot) => {
-                    let previewImg = '';
-                    if (newData.online && imgBuff) {
-                        let defaultUrl = `https://static-cdn.jtvnw.net/previews-ttv/live_user_${member.twitchName}-640x360.jpg?tt=${Date.now()}`;
-                        previewImg = await uploadImage(imgBuff, `${member.id}-${Date.now()}.jpg`) ?? defaultUrl;
-                    }
-
-                    let msgTitle = (newData.online ? "🔴 " : "⚫ ") + titleInfo.join(", ") + " 알림";
-                    let msgContent = newData.title + '\n' + newData.category;
-                    let msgUrl = 'https://www.twitch.tv/' + member.twitchName;
-
-                    let discordJobs = [];
-                    for (let key in snapshot.val()) {
-                        let urlKey = key.replace('|', '/');
-                        let discoJob = sendDiscord(urlKey, member, msgTitle, msgContent, msgUrl, previewImg, now)
-                            .catch((err) => {
-                                // 등록된 웹훅 호출에 특정 오류로 실패할 경우 DB에서 삭제.
-                                if (err.code === Constants.APIErrors.UNKNOWN_WEBHOOK
-                                    || err.code === Constants.APIErrors.INVALID_WEBHOOK_TOKEN
-                                ) {
-                                    let refHook = admin.database().ref('discord/' + member.id + '/' + key);
-                                    return refHook.remove()
-                                        .then(() => functions.logger.info("Remove an invalid webhook.", key))
-                                        .catch((err) => functions.logger.error("Fail to remove an invalid webhook.", key, err));
-                                } else {
-                                    functions.logger.info("Fail to send discord and will retry.", key, err);
-
-                                    return sendDiscord(urlKey, member, msgTitle, msgContent, msgUrl, previewImg, now)
-                                        .catch((err) => functions.logger.error("Fail to send discord.", key, err));
-                                }
-                            });
-                        discordJobs.push(discoJob);
-                    }
-
-                    await Promise.allSettled(discordJobs);
-                });
-                subJobs.push(subJob);
-
-                return Promise.allSettled(subJobs);
-            });
-            jobs.push(msgJob);
-        }
-    }
-
-    if (prevFcmJob !== null) {
-        await prevFcmJob;
-    }
-
-    await Promise.allSettled(jobs);
 }
 
 let broadCategoryCache: string;
@@ -921,7 +574,7 @@ exports.watchStreams = functions.region(cloudRegion).pubsub.schedule('every 1 mi
         return null;
     }
 
-    await Promise.allSettled([streamJob(), afreecaJob()]);
+    await afreecaJob();
 
     await refTime.set(Date.now());
 
@@ -936,7 +589,7 @@ exports.updateStreams = functions.region(cloudRegion).https.onRequest(async (req
         return;
     }
 
-    await Promise.allSettled([streamJob(), afreecaJob()]);
+    await afreecaJob();
 
     let now = Date.now();
     let refTime = admin.database().ref('lasttime');
