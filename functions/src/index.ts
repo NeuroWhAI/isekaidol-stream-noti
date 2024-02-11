@@ -262,7 +262,7 @@ async function getAfreecaCategoryName(categoryNo: string): Promise<string> {
     return name;
 }
 
-type AfreecaLiveOn = { online: true, title: string, category: string, broadNo: string };
+type AfreecaLiveOn = { online: true, title: string, category: string, broadNo: string, locked: boolean };
 type AfreecaLiveOff = { online: false };
 
 async function fetchAfreecaLive(afreecaId: string): Promise<AfreecaLiveOn | AfreecaLiveOff> {
@@ -292,6 +292,7 @@ async function fetchAfreecaLive(afreecaId: string): Promise<AfreecaLiveOn | Afre
             title: chan.TITLE ?? '',
             category: category,
             broadNo: chan.BNO ?? '',
+            locked: chan.BPWD === 'Y',
         };
     }
 
@@ -310,7 +311,7 @@ async function afreecaJob() {
     for (const member of members) {
         const live = await fetchAfreecaLive(member.afreecaId);
         let newData = {
-            online: live.online,
+            online: live.online && !live.locked,
             title: live.online ? live.title : '',
             category: live.online ? live.category : '',
         };
@@ -326,7 +327,7 @@ async function afreecaJob() {
             continue;
         }
 
-        if (!newData.online) {
+        if (!live.online) {
             newData.title = dbData.title ?? '';
             newData.category = dbData.category ?? '';
         }
@@ -399,8 +400,8 @@ async function afreecaJob() {
         }
 
         // 알림 전송.
-        // 단, 방종 상태에선 전부 알리지 않음.
-        if (newData.online && (onlineChanged || titleChanged || categoryChanged)) {
+        // 단, 방종 및 방종 상태의 카테고리 변경은 알리지 않음.
+        if ((onlineChanged && newData.online) || titleChanged || (categoryChanged && newData.online)) {
             // FCM 메시지 전송.
             //
 
