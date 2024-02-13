@@ -201,20 +201,34 @@ async function uploadImage(jpgBuff: Buffer, fileName: string): Promise<string | 
 }
 
 async function getAfreecaPreview(broadNo: string): Promise<Buffer | null> {
-    let abortCtrl = new AbortController();
-    let timeoutId = setTimeout(() => abortCtrl.abort(), 4 * 1000);
-
     let imgBuff = null;
 
-    try {
-        let imgUrl = `https://liveimg.afreecatv.com/${broadNo}?tt=${Date.now()}`;
-        let res = await fetch(imgUrl, { signal: abortCtrl.signal });
+    let now = Date.now();
+    let imgUrls = [
+        `https://liveimg.afreecatv.com/${broadNo}.jpg?${now}`,
+        `https://liveimg.afreecatv.com/m/${broadNo}.jpg?${now}`,
+        `https://liveimg.afreecatv.com/h/${broadNo}.jpg?${now}`,
+        `https://liveimg.afreecatv.com/${broadNo}?${now}`,
+    ];
 
-        if (res.ok) {
-            imgBuff = await res.buffer();
-            functions.logger.info("Getting a preview success.");
-        } else {
-            functions.logger.error("Fail to get a preview image.", res.status);
+    let abortCtrl = new AbortController();
+    let timeoutId = setTimeout(() => abortCtrl.abort(), imgUrls.length * 1000);
+
+    try {
+        for (let i = 0; i < imgUrls.length; i++) {
+            let imgUrl = imgUrls[i];
+            let res = await fetch(imgUrl, { signal: abortCtrl.signal });
+
+            if (res.ok) {
+                imgBuff = await res.buffer();
+                functions.logger.info("Getting a preview success.");
+                break;
+            } else {
+                functions.logger.error("Fail to get a preview image.", res.status);
+                if (i < imgUrls.length - 1) {
+                    await new Promise((resolve) => setTimeout(resolve, 800));
+                }
+            }
         }
     } catch (err) {
         functions.logger.error("Fail to get a preview image.", err);
