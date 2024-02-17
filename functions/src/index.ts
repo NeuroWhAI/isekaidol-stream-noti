@@ -276,7 +276,7 @@ async function getAfreecaCategoryName(categoryNo: string): Promise<string> {
     return name;
 }
 
-type AfreecaLiveOn = { online: true, title: string, category: string, broadNo: string, locked: boolean };
+type AfreecaLiveOn = { online: true, title: string, category: string, broadNo: string, locked: boolean, copyrighted: boolean };
 type AfreecaLiveOff = { online: false };
 
 async function fetchAfreecaLive(afreecaId: string): Promise<AfreecaLiveOn | AfreecaLiveOff> {
@@ -289,6 +289,24 @@ async function fetchAfreecaLive(afreecaId: string): Promise<AfreecaLiveOn | Afre
     const chan = data.CHANNEL;
     if (!chan) {
         throw new Error('No channel for ' + afreecaId);
+    }
+
+    if (chan.RESULT < 0) {
+        const res = await fetch(`https://bjapi.afreecatv.com/api/${afreecaId}/station`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' },
+        });
+        const data = await res.json();
+        const broad = data.broad;
+        if (broad) {
+            return {
+                online: true,
+                title: broad.broad_title ?? '',
+                category: '알수없음',
+                broadNo: (broad.broad_no != null) ? `${broad.broad_no}` : '',
+                locked: !!broad.is_password,
+                copyrighted: true,
+            };
+        }
     }
 
     let category = '';
@@ -307,6 +325,7 @@ async function fetchAfreecaLive(afreecaId: string): Promise<AfreecaLiveOn | Afre
             category: category,
             broadNo: chan.BNO ?? '',
             locked: chan.BPWD === 'Y',
+            copyrighted: false,
         };
     }
 
@@ -489,7 +508,7 @@ async function afreecaJob() {
 
             // 썸네일 얻고 나머지 플랫폼에 전송.
             let imgJob: Promise<Buffer | null> = Promise.resolve(null);
-            if (live.online) {
+            if (live.online && !live.copyrighted) {
                 imgJob = getAfreecaPreview(live.broadNo);
             }
             let msgJob = imgJob.then((imgBuff) => {
