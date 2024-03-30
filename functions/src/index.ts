@@ -38,16 +38,17 @@ if (twitterAppKey && twitterAppSecret && twitterAccessToken && twitterAccessSecr
 interface MemberData {
     id: string,
     name: string,
+    nickname: string,
     afreecaId: string,
     color: HexColorString,
 }
 const members: MemberData[] = [
-    { id: 'jururu', name: '주르르', afreecaId: 'cotton1217', color: '#ffacac' },
-    { id: 'jingburger', name: '징버거', afreecaId: 'jingburger1', color: '#f0a957' },
-    { id: 'viichan', name: '비챤', afreecaId: 'viichan6', color: '#85ac20' },
-    { id: 'gosegu', name: '고세구', afreecaId: 'gosegu2', color: '#467ec6' },
-    { id: 'lilpa', name: '릴파', afreecaId: 'lilpa0309', color: '#3e52d9' },
-    { id: 'ine', name: '아이네', afreecaId: 'inehine', color: '#8a2be2' },
+    { id: 'jururu', name: '주르르', nickname: '인간자두캔디', afreecaId: 'cotton1217', color: '#ffacac' },
+    { id: 'jingburger', name: '징버거', nickname: '부가땅', afreecaId: 'jingburger1', color: '#f0a957' },
+    { id: 'viichan', name: '비챤', nickname: '인간납작복숭아', afreecaId: 'viichan6', color: '#85ac20' },
+    { id: 'gosegu', name: '고세구', nickname: '고양이', afreecaId: 'gosegu2', color: '#467ec6' },
+    { id: 'lilpa', name: '릴파', nickname: '릴트리버', afreecaId: 'lilpa0309', color: '#3e52d9' },
+    { id: 'ine', name: '아이네', nickname: '슬라임', afreecaId: 'inehine', color: '#8a2be2' },
 ];
 
 function encodeFcmToken(token: string): string {
@@ -531,6 +532,10 @@ async function afreecaJob() {
                 now = new Date(utc + (3600000 * 9));
 
                 let tweetHead = (newData.online ? "🔴 " : "⚫ ") + member.name + ' ';
+                // 만우절 장난.
+                if (now.getMonth() + 1 === 4 && now.getDate() === 1) {
+                    tweetHead = (newData.online ? "🔴 " : "⚫ ") + member.nickname + ' ';
+                }
                 let tweetTail = "\n#이세돌 #이세계아이돌 #" + member.name + ' ' + now.toLocaleTimeString('ko-KR');
                 let tweetOverLen = tweetHead.length + tweetTail.length + msg.length - 140;
                 if (tweetOverLen > 0) {
