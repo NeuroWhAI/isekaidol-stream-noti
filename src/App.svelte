@@ -67,7 +67,7 @@
         multiStreamUrl = "https://mul.live";
         for (let id of memberIds) {
             if (streamData[id].online) {
-                multiStreamUrl += "/a:" + members[id].afreecaId;
+                multiStreamUrl += "/s:" + members[id].afreecaId;
             }
         }
     });

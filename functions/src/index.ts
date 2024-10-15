@@ -206,10 +206,10 @@ async function getAfreecaPreview(broadNo: string): Promise<Buffer | null> {
 
     let now = Date.now();
     let imgUrls = [
-        `https://liveimg.afreecatv.com/${broadNo}.jpg?${now}`,
-        `https://liveimg.afreecatv.com/m/${broadNo}.jpg?${now}`,
-        `https://liveimg.afreecatv.com/h/${broadNo}.jpg?${now}`,
-        `https://liveimg.afreecatv.com/${broadNo}?${now}`,
+        `https://liveimg.sooplive.co.kr/${broadNo}.jpg?${now}`,
+        `https://liveimg.sooplive.co.kr/m/${broadNo}.jpg?${now}`,
+        `https://liveimg.sooplive.co.kr/h/${broadNo}.jpg?${now}`,
+        `https://liveimg.sooplive.co.kr/${broadNo}?${now}`,
     ];
 
     let abortCtrl = new AbortController();
@@ -245,7 +245,7 @@ let broadCategoryCache: string;
 async function getAfreecaCategoryName(categoryNo: string): Promise<string> {
     let data = broadCategoryCache;
     if (!data) {
-        const res = await fetch('https://live.afreecatv.com/script/locale/ko_KR/broad_category.js');
+        const res = await fetch('https://live.sooplive.co.kr/script/locale/ko_KR/broad_category.js');
         data = await res.text();
     }
     
@@ -281,7 +281,7 @@ type AfreecaLiveOn = { online: true, title: string, category: string, broadNo: s
 type AfreecaLiveOff = { online: false };
 
 async function fetchAfreecaLive(afreecaId: string): Promise<AfreecaLiveOn | AfreecaLiveOff> {
-    const res = await fetch('https://live.afreecatv.com/afreeca/player_live_api.php', {
+    const res = await fetch('https://live.sooplive.co.kr/afreeca/player_live_api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'bid=' + afreecaId,
@@ -293,7 +293,7 @@ async function fetchAfreecaLive(afreecaId: string): Promise<AfreecaLiveOn | Afre
     }
 
     if (chan.RESULT < 0) {
-        const res = await fetch(`https://bjapi.afreecatv.com/api/${afreecaId}/station`, {
+        const res = await fetch(`https://chapi.sooplive.co.kr/api/${afreecaId}/station`, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' },
         });
         const data = await res.json();
@@ -555,13 +555,13 @@ async function afreecaJob() {
                 subJob = refDiscord.get().then(async (snapshot) => {
                     let previewImg = '';
                     if (live.online && imgBuff) {
-                        let defaultUrl = `https://liveimg.afreecatv.com/${live.broadNo}?t=${Date.now()}`;
+                        let defaultUrl = `https://liveimg.sooplive.co.kr/${live.broadNo}?t=${Date.now()}`;
                         previewImg = await uploadImage(imgBuff, `${member.id}-${Date.now()}.jpg`) ?? defaultUrl;
                     }
 
                     let msgTitle = (newData.online ? "🔴 " : "⚫ ") + titleInfo.join(", ") + " 알림";
                     let msgContent = newData.title + '\n' + newData.category;
-                    let msgUrl = 'https://play.afreecatv.com/' + member.afreecaId;
+                    let msgUrl = 'https://play.sooplive.co.kr/' + member.afreecaId;
 
                     let discordJobs = [];
                     for (let key in snapshot.val()) {

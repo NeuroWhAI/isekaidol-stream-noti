@@ -90,7 +90,7 @@
     <Card tight class="{online ? 'card-highlight' : ''} {!online && dday >= 2 ? 'card-cold-fan' : ''}">
         <div class="box">
             <div class="profile-box">
-                <a href="https://play.afreecatv.com/{data.afreecaId}" class="live-link">
+                <a href="https://play.sooplive.co.kr/{data.afreecaId}" class="live-link">
                     <Badge hidden={!online} style="display: flex">
                         <img src="image/{id}.png" title="{data.name}" alt="{data.name}" class="profile" style="--profile-color: {online ? data.color : 'gray'}" />
                     </Badge>
@@ -99,7 +99,7 @@
                 <div class="dday" hidden={dday < 2 || online}>D+{dday}</div>
             </div>
             <div class="info-box" style="--new-title: {newTitle ? 'inline' : 'none'}; --new-category: {newCategory ? 'inline' : 'none'}">
-                <a href="https://play.afreecatv.com/{data.afreecaId}" class="live-link">
+                <a href="https://play.sooplive.co.kr/{data.afreecaId}" class="live-link">
                     <span bind:this={titleBox} class="content-text title" {title}>{title === '' ? "제목 없음" : title}</span>
                 </a>
                 <span class="content-text category">{category}</span>

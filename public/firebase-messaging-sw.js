@@ -21,7 +21,7 @@ self.addEventListener('notificationclick', function(e) {
     if (type === 'space') {
         url = "https://twitter.com/" + members[id].x;
     } else if (type === 'afreeca') {
-        url = "https://play.afreecatv.com/" + members[id].af;
+        url = "https://play.sooplive.co.kr/" + members[id].af;
     }
 
     e.notification.close();
